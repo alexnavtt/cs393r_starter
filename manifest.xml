@@ -18,6 +18,7 @@
   <depend package="rosbag"/>
   <depend package="tf"/>
   <depend package="f1tenth_course"/>
+  <dpend package="amrl_msgs"/>
 
 </package>
 

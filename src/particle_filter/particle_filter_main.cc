@@ -31,7 +31,7 @@
 
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
-#include "f1tenth_course/VisualizationMsg.h"
+#include "amrl_msgs/VisualizationMsg.h"
 #include "gflags/gflags.h"
 #include "geometry_msgs/Pose2D.h"
 #include "geometry_msgs/PoseArray.h"
@@ -52,7 +52,7 @@
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
 
-using f1tenth_course::VisualizationMsg;
+using amrl_msgs::VisualizationMsg;
 using geometry::line2f;
 using geometry::Line;
 using math_util::DegToRad;

@@ -22,23 +22,23 @@
 #include <string>
 
 #include "eigen3/Eigen/Dense"
-#include "f1tenth_course/Pose2Df.h"
-#include "f1tenth_course/ColoredArc2D.h"
-#include "f1tenth_course/ColoredLine2D.h"
-#include "f1tenth_course/PathVisualization.h"
-#include "f1tenth_course/ColoredPoint2D.h"
-#include "f1tenth_course/VisualizationMsg.h"
+#include "amrl_msgs/Pose2Df.h"
+#include "amrl_msgs/ColoredArc2D.h"
+#include "amrl_msgs/ColoredLine2D.h"
+#include "amrl_msgs/PathVisualization.h"
+#include "amrl_msgs/ColoredPoint2D.h"
+#include "amrl_msgs/VisualizationMsg.h"
 #include "ros/ros.h"
 
 #include "visualization.h"
 
 using Eigen::Vector2f;
-using f1tenth_course::ColoredArc2D;
-using f1tenth_course::ColoredLine2D;
-using f1tenth_course::ColoredPoint2D;
-using f1tenth_course::Pose2Df;
-using f1tenth_course::PathVisualization;
-using f1tenth_course::VisualizationMsg;
+using amrl_msgs::ColoredArc2D;
+using amrl_msgs::ColoredLine2D;
+using amrl_msgs::ColoredPoint2D;
+using amrl_msgs::Pose2Df;
+using amrl_msgs::PathVisualization;
+using amrl_msgs::VisualizationMsg;
 using std::string;
 
 namespace {
@@ -62,7 +62,7 @@ void ClearVisualizationMsg(VisualizationMsg& msg) {
 }
 
 // Return new visualization message, with initialized headers and namespace.
-f1tenth_course::VisualizationMsg NewVisualizationMessage(
+VisualizationMsg NewVisualizationMessage(
     const string& frame, const string& ns) {
   VisualizationMsg msg;
   msg.header.frame_id = frame;

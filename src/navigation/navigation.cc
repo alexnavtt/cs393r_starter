@@ -22,9 +22,9 @@
 #include "gflags/gflags.h"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
-#include "f1tenth_course/AckermannCurvatureDriveMsg.h"
-#include "f1tenth_course/Pose2Df.h"
-#include "f1tenth_course/VisualizationMsg.h"
+#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
+#include "amrl_msgs/Pose2Df.h"
+#include "amrl_msgs/VisualizationMsg.h"
 #include "glog/logging.h"
 #include "ros/ros.h"
 #include "shared/math/math_util.h"
@@ -34,8 +34,8 @@
 #include "visualization/visualization.h"
 
 using Eigen::Vector2f;
-using f1tenth_course::AckermannCurvatureDriveMsg;
-using f1tenth_course::VisualizationMsg;
+using amrl_msgs::AckermannCurvatureDriveMsg;
+using amrl_msgs::VisualizationMsg;
 using std::string;
 using std::vector;
 
