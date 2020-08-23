@@ -13,9 +13,8 @@
 //  If not, see <http://www.gnu.org/licenses/>.
 //========================================================================
 /*!
-\file    particle-filter-main.cc
-\brief   Main entry point for particle filter based
-         mobile robot localization
+\file    slam-main.cc
+\brief   Main entry point for slam
 \author  Joydeep Biswas, (C) 2019
 */
 //========================================================================
@@ -48,7 +47,7 @@
 #include "shared/math/line2d.h"
 #include "shared/util/timer.h"
 
-#include "particle_filter.h"
+#include "slam.h"
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
 
@@ -85,7 +84,7 @@ CONFIG_FLOAT(init_r_, "init_r");
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
 bool run_ = true;
-particle_filter::ParticleFilter particle_filter_;
+slam::SLAM slam_;
 ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 ros::Publisher laser_publisher_;
@@ -99,13 +98,13 @@ void InitializeMsgs() {
   header.frame_id = "map";
   header.seq = 0;
 
-  vis_msg_ = visualization::NewVisualizationMessage("map", "particle_filter");
+  vis_msg_ = visualization::NewVisualizationMessage("map", "slam");
 }
 
 void PublishParticles() {
-  vector<particle_filter::Particle> particles;
-  particle_filter_.GetParticles(&particles);
-  for (const particle_filter::Particle& p : particles) {
+  vector<slam::Particle> particles;
+  slam_.GetParticles(&particles);
+  for (const slam::Particle& p : particles) {
     DrawParticle(p.loc, p.angle, vis_msg_);
   }
 }
@@ -114,9 +113,9 @@ void PublishPredictedScan() {
   const uint32_t kColor = 0xd67d00;
   Vector2f robot_loc(0, 0);
   float robot_angle(0);
-  particle_filter_.GetLocation(&robot_loc, &robot_angle);
+  slam_.GetLocation(&robot_loc, &robot_angle);
   vector<Vector2f> predicted_scan;
-  particle_filter_.GetPredictedPointCloud(
+  slam_.GetPredictedPointCloud(
       robot_loc,
       robot_angle,
       last_laser_msg_.ranges.size(),
@@ -134,7 +133,7 @@ void PublishTrajectory() {
   const uint32_t kColor = 0xadadad;
   Vector2f robot_loc(0, 0);
   float robot_angle(0);
-  particle_filter_.GetLocation(&robot_loc, &robot_angle);
+  slam_.GetLocation(&robot_loc, &robot_angle);
   static Vector2f last_loc_(0, 0);
   if (!trajectory_points_.empty() &&
       (last_loc_ - robot_loc).squaredNorm() > Sq(1.5)) {
@@ -174,7 +173,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     printf("Laser t=%f\n", msg.header.stamp.toSec());
   }
   last_laser_msg_ = msg;
-  particle_filter_.ObserveLaser(
+  slam_.ObserveLaser(
       msg.ranges,
       msg.range_min,
       msg.range_max,
@@ -190,10 +189,10 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   const Vector2f odom_loc(msg.pose.pose.position.x, msg.pose.pose.position.y);
   const float odom_angle =
       2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
-  particle_filter_.ObserveOdometry(odom_loc, odom_angle);
+  slam_.ObserveOdometry(odom_loc, odom_angle);
   Vector2f robot_loc(0, 0);
   float robot_angle(0);
-  particle_filter_.GetLocation(&robot_loc, &robot_angle);
+  slam_.GetLocation(&robot_loc, &robot_angle);
   amrl_msgs::Localization2DMsg localization_msg;
   localization_msg.pose.x = robot_loc.x();
   localization_msg.pose.y = robot_loc.y();
@@ -212,7 +211,7 @@ void InitCallback(const nav_msgs::Odometry& msg) {
          init_loc.x(),
          init_loc.y(),
          RadToDeg(init_angle));
-  particle_filter_.Initialize(map, init_loc, init_angle);
+  slam_.Initialize(map, init_loc, init_angle);
   trajectory_points_.clear();
 }
 
@@ -224,7 +223,7 @@ void InitPoseCallback(const geometry_msgs::PoseWithCovarianceStamped& msg) {
   const string map = FLAGS_map.empty() ? CONFIG_map_name_ : FLAGS_map;
   printf("Initialize: %s (%f,%f) %f\u00b0\n",
       map.c_str(), x, y, RadToDeg(theta));
-  particle_filter_.Initialize(map, Vector2f(x, y), theta);
+  slam_.Initialize(map, Vector2f(x, y), theta);
 }
 
 void ProcessLive(ros::NodeHandle* n) {
@@ -260,7 +259,7 @@ int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
   signal(SIGINT, SignalHandler);
   // Initialize ROS.
-  ros::init(argc, argv, "particle_filter", ros::init_options::NoSigintHandler);
+  ros::init(argc, argv, "slam", ros::init_options::NoSigintHandler);
   ros::NodeHandle n;
   InitializeMsgs();
   map_ = vector_map::VectorMap(CONFIG_map_name_);
