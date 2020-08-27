@@ -1,7 +1,7 @@
 # cs393r_starter
 
 ## Using this Repo
-You will be using a fork of this repo for all development in the class. This repo provides starter code for the ROS subscriptions, publishers and control loops you will be using.
+You will be using a duplicate of this repo for all development in the class. This repo provides starter code for the ROS subscriptions, publishers and control loops you will be using.
 
 ### Fork the Repo
 1. Make sure you're logged into your GitHub account.
