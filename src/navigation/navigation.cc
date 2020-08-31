@@ -55,21 +55,21 @@ const float kEpsilon = 1e-5;
 namespace navigation {
 
 Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
-    robot_loc_(0, 0),
-    robot_angle_(0),
-    robot_vel_(0, 0),
-    robot_omega_(0),
-    nav_complete_(true),
-    nav_goal_loc_(0, 0),
-    nav_goal_angle_(0) {
-  drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
-      "ackermann_curvature_drive", 1);
-  viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
-  local_viz_msg_ = visualization::NewVisualizationMessage(
-      "base_link", "navigation_local");
-  global_viz_msg_ = visualization::NewVisualizationMessage(
-      "map", "navigation_global");
-  InitRosHeader("base_link", &drive_msg_.header);
+		robot_loc_(0, 0),
+		robot_angle_(0),
+		robot_vel_(0, 0),
+		robot_omega_(0),
+		nav_complete_(true),
+		nav_goal_loc_(0, 0),
+		nav_goal_angle_(0) {
+	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
+			"ackermann_curvature_drive", 1);
+	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
+	local_viz_msg_ = visualization::NewVisualizationMessage(
+			"base_link", "navigation_local");
+	global_viz_msg_ = visualization::NewVisualizationMessage(
+			"map", "navigation_global");
+	InitRosHeader("base_link", &drive_msg_.header);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -79,19 +79,25 @@ void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc,
-                                float angle,
-                                const Vector2f& vel,
-                                float ang_vel) {
+																float angle,
+																const Vector2f& vel,
+																float ang_vel) {
 }
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
-                                   double time) {
+																	 double time) {
 }
 
 void Navigation::Run() {
-  // Create Helper functions here
-  // Milestone 1 will fill out part of this class.
-  // Milestone 3 will complete the rest of navigation.
+	drive_msg_.header.seq++;
+	drive_msg_.header.stamp = ros::Time::now();
+	drive_msg_.velocity = 1.0;
+	drive_msg_.curvature = 0.0;
+
+	drive_pub_.publish(drive_msg_);
+	// Create Helper functions here
+	// Milestone 1 will fill out part of this class.
+	// Milestone 3 will complete the rest of navigation.
 }
 
 }  // namespace navigation
