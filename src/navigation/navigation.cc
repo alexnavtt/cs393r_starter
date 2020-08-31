@@ -50,6 +50,12 @@ VisualizationMsg global_viz_msg_;
 AckermannCurvatureDriveMsg drive_msg_;
 // Epsilon value for handling limited numerical precision.
 const float kEpsilon = 1e-5;
+// Delta t of the control loop
+const float dt_ = 1/20.0;
+
+// Robot Limits
+const float max_vel_	 = 0.8;
+const float max_accel_ = 1.0;
 } //namespace
 
 namespace navigation {
@@ -82,16 +88,26 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
 																float angle,
 																const Vector2f& vel,
 																float ang_vel) {
+	robot_loc_ = loc;
+	robot_angle_ = angle;
+	robot_vel_ = vel;
+	robot_omega_ = ang_vel;
 }
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
 																	 double time) {
 }
 
+// New function I added: Alex
+float Navigation::limitVelocity(float vel){
+	float new_vel = std::min({vel, robot_vel_[0] + max_accel_*dt_, max_vel_});
+	return std::max({new_vel, robot_vel_[0] - max_accel_*dt_, -max_vel_});
+}
+
 void Navigation::Run() {
 	drive_msg_.header.seq++;
 	drive_msg_.header.stamp = ros::Time::now();
-	drive_msg_.velocity = 1.0;
+	drive_msg_.velocity = limitVelocity(1.0);
 	drive_msg_.curvature = 0.0;
 
 	drive_pub_.publish(drive_msg_);

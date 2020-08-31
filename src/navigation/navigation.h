@@ -20,6 +20,7 @@
 //========================================================================
 
 #include <vector>
+#include <algorithm>
 
 #include "eigen3/Eigen/Dense"
 
@@ -64,6 +65,9 @@ class Navigation {
   void Run();
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
+
+  // Navarro: Added this to scale to acceleration limits
+  float limitVelocity(float vel);
 
  private:
 
