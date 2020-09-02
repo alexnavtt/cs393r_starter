@@ -27,6 +27,7 @@
 #include "amrl_msgs/VisualizationMsg.h"
 #include "glog/logging.h"
 #include "ros/ros.h"
+#include "ros/console.h" // Mark added
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
@@ -84,6 +85,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+	nav_goal_loc_ = loc;
+	nav_goal_angle_ = angle;
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
@@ -98,29 +101,57 @@ void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 }
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
-                                                                     double time) {
+                                   double time) {
 }
 
 // New function I added     -Alex
-float Navigation::limitVelocity(float vel){
+float Navigation::limitVelocity(float vel) {
 		float new_vel = std::min({vel,     robot_vel_[0] + max_accel_*dt_, max_vel_});
     return          std::max({new_vel, robot_vel_[0] + min_accel_*dt_, min_vel_});
 }
 
-void Navigation::Run() {
-    drive_msg_.header.seq++;
-    drive_msg_.header.stamp = ros::Time::now();
-		if (robot_loc_[0] < 1.0)
-		{
-			drive_msg_.velocity = limitVelocity(1.0);
-		}
-		else
-		{
-			drive_msg_.velocity = limitVelocity(0.0);
-		}
-    drive_msg_.curvature = 0.0;
+// Move forward a set amount
+void Navigation::moveForwards(float travel_distance){
+		float dist = travel_distance;
+		// Distance required for car to accelerate to max velocity
+		float accel_dist =  0.5*max_vel_*max_vel_/max_accel_;
+		float decel_dist = -0.5*max_vel_*max_vel_/min_accel_;
+		// Minimum distance where car reaches max velocity in the middle
+		float min_dist = accel_dist + decel_dist;
 
-    drive_pub_.publish(drive_msg_);
+		float inflection_dist = 0.0;
+		// Solve for distance at which to start decelerating
+		if (dist >= min_dist) {
+			// Normal operation: speed up, cruise at that velocity, and then slow down
+			inflection_dist = dist - decel_dist;
+		}
+		else {
+			// Car does not reach max velocity, inflection point is interpolated
+			inflection_dist = dist*(max_accel_/(max_accel_-min_accel_));
+		}
+
+		ROS_DEBUG("Hello");
+
+		while(robot_loc_[0] < inflection_dist) {
+			driveCar(0.0, limitVelocity(max_vel_));
+		}
+		while(robot_loc_[0] < dist) {
+			driveCar(0.0, limitVelocity(0.0));
+		}
+}
+
+void Navigation::driveCar(float curvature, float velocity){
+		drive_msg_.header.seq++;
+		drive_msg_.header.stamp = ros::Time::now();
+		drive_msg_.curvature = curvature;
+		drive_msg_.velocity = velocity;
+		drive_pub_.publish(drive_msg_);
+}
+
+void Navigation::Run() {
+
+		moveForwards(1.0);
+
     // Create Helper functions here
     // Milestone 1 will fill out part of this class.
     // Milestone 3 will complete the rest of navigation.

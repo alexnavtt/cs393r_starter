@@ -69,6 +69,11 @@ class Navigation {
   // Navarro: Added this to scale to acceleration limits
   float limitVelocity(float vel);
 
+  // Jennings: Added this to move forwards a set distance in x direction
+  void moveForwards(float travel_distance);
+
+  void driveCar(float curvature, float velocity);
+
  private:
 
   // Current robot location.
