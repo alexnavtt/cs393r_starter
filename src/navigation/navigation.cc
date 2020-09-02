@@ -103,14 +103,21 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
 
 // New function I added     -Alex
 float Navigation::limitVelocity(float vel){
-    float new_vel = std::min({vel,     robot_vel_[0] + max_accel_*dt_, max_vel_});
+		float new_vel = std::min({vel,     robot_vel_[0] + max_accel_*dt_, max_vel_});
     return          std::max({new_vel, robot_vel_[0] + min_accel_*dt_, min_vel_});
 }
 
 void Navigation::Run() {
     drive_msg_.header.seq++;
     drive_msg_.header.stamp = ros::Time::now();
-    drive_msg_.velocity = limitVelocity(1.0);
+		if robot_loc_ < 1
+		{
+			drive_msg_.velocity = limitVelocity(1.0);
+		}
+		else
+		{
+			drive_msg_.velocity = limitVelocity(0.0);
+		}
     drive_msg_.curvature = 0.0;
 
     drive_pub_.publish(drive_msg_);
