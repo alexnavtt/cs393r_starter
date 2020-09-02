@@ -110,7 +110,7 @@ float Navigation::limitVelocity(float vel){
 void Navigation::Run() {
     drive_msg_.header.seq++;
     drive_msg_.header.stamp = ros::Time::now();
-		if robot_loc_ < 1
+		if (robot_loc_[0] < 1.0)
 		{
 			drive_msg_.velocity = limitVelocity(1.0);
 		}
