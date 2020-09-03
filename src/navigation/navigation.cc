@@ -62,26 +62,35 @@ const float max_vel_   =  1.0;
 const float min_vel_   = -1.0;
 const float max_accel_ =  4.0;
 const float min_accel_ = -4.0;
+
+// Minimum distance needed for the car to accelerate/decelerate fully
+const float accel_dist_ =  0.5*max_vel_*max_vel_/max_accel_;
+const float decel_dist_ = -0.5*max_vel_*max_vel_/min_accel_;
+
+// Variables to deal with this dumb way of doing things
+Eigen::Vector2f start_point_;
+
+bool init_ = true;
 } //namespace
 
 namespace navigation {
 
 Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
-        robot_loc_(0, 0),
-        robot_angle_(0),
-        robot_vel_(0, 0),
-        robot_omega_(0),
-        nav_complete_(true),
-        nav_goal_loc_(0, 0),
-        nav_goal_angle_(0) {
-    drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
-            "ackermann_curvature_drive", 1);
-    viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
-    local_viz_msg_ = visualization::NewVisualizationMessage(
-            "base_link", "navigation_local");
-    global_viz_msg_ = visualization::NewVisualizationMessage(
-            "map", "navigation_global");
-    InitRosHeader("base_link", &drive_msg_.header);
+		robot_loc_(0, 0),
+		robot_angle_(0),
+		robot_vel_(0, 0),
+		robot_omega_(0),
+		nav_complete_(true),
+		nav_goal_loc_(0, 0),
+		nav_goal_angle_(0) {
+	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
+			"ackermann_curvature_drive", 1);
+	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
+	local_viz_msg_ = visualization::NewVisualizationMessage(
+			"base_link", "navigation_local");
+	global_viz_msg_ = visualization::NewVisualizationMessage(
+			"map", "navigation_global");
+	InitRosHeader("base_link", &drive_msg_.header);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -93,68 +102,68 @@ void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
-                                const Vector2f& vel, float ang_vel) {
-    robot_loc_ = loc;
-    robot_angle_ = angle;
-    robot_vel_ = vel;
-    robot_omega_ = ang_vel;
+								const Vector2f& vel, float ang_vel) {
+	robot_loc_ = loc;
+	robot_angle_ = angle;
+	robot_vel_ = vel;
+	robot_omega_ = ang_vel;
+
+	init_ = false;
 }
 
-void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
-                                   double time) {
+void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 }
 
-// New function I added     -Alex
+// Limit Velocity to follow both acceleartion and velocity limits
 float Navigation::limitVelocity(float vel) {
-		float new_vel = std::min({vel,     robot_vel_[0] + max_accel_*dt_, max_vel_});
-    return          std::max({new_vel, robot_vel_[0] + min_accel_*dt_, min_vel_});
+	float new_vel = std::min({vel,     robot_vel_[0] + max_accel_ * dt_, max_vel_});
+	return          std::max({new_vel, robot_vel_[0] + min_accel_ * dt_, min_vel_});
 }
 
-// Move forward a set amount
-void Navigation::moveForwards(float travel_distance){
-		float dist = travel_distance;
-		// Distance required for car to accelerate to max velocity
-		float accel_dist =  0.5*max_vel_*max_vel_/max_accel_;
-		float decel_dist = -0.5*max_vel_*max_vel_/min_accel_;
-		// Minimum distance where car reaches max velocity in the middle
-		float min_dist = accel_dist + decel_dist;
+// Move forward a set amount in a straight line
+void Navigation::moveForwards(float start, float dist, float loc){
+	// Minimum distance where car reaches max velocity in the middle
+	float min_dist = accel_dist_ + decel_dist_;
 
-		float inflection_dist = 0.0;
-		// Solve for distance at which to start decelerating
-		if (dist >= min_dist) {
-			// Normal operation: speed up, cruise at that velocity, and then slow down
-			inflection_dist = dist - decel_dist;
-		}
-		else {
-			// Car does not reach max velocity, inflection point is interpolated
-			inflection_dist = dist*(max_accel_/(max_accel_-min_accel_));
-		}
+	// Solve for distance at which to start decelerating
+	float inflection_dist;
+	if (dist >= min_dist) {
+		// Normal operation: speed up, cruise at that velocity, and then slow down
+		inflection_dist = dist - decel_dist_;
+	}else{
+		// Car does not reach max velocity, inflection point is interpolated
+		inflection_dist = dist*(max_accel_/(max_accel_-min_accel_));
+	}
 
-		ROS_DEBUG("Hello");
+	// Determine if to accelerate or decelerate
+	float cmd_vel;
+	(loc - start < inflection_dist) ? cmd_vel = max_vel_ : cmd_vel = 0.0;
 
-		while(robot_loc_[0] < inflection_dist) {
-			driveCar(0.0, limitVelocity(max_vel_));
-		}
-		while(robot_loc_[0] < dist) {
-			driveCar(0.0, limitVelocity(0.0));
-		}
+	// Publish command
+	driveCar(0.0, limitVelocity(cmd_vel));
 }
 
 void Navigation::driveCar(float curvature, float velocity){
-		drive_msg_.header.seq++;
-		drive_msg_.header.stamp = ros::Time::now();
-		drive_msg_.curvature = curvature;
-		drive_msg_.velocity = velocity;
-		drive_pub_.publish(drive_msg_);
+	drive_msg_.header.seq++;
+	drive_msg_.header.stamp = ros::Time::now();
+	drive_msg_.curvature = curvature;
+	drive_msg_.velocity = velocity;
+	drive_pub_.publish(drive_msg_);
 }
 
 void Navigation::Run() {
+	// Added this section for anything that we only want to happen once (like Arduino Setup function)
+	if  (init_){
+		while (init_ and ros::ok()){
+			ros::spinOnce();
+			ros::Rate(10).sleep();
+		}
 
-		moveForwards(1.0);
+		start_point_ = robot_loc_;
+	}
 
-    // Create Helper functions here
-    // Milestone 1 will fill out part of this class.
-    // Milestone 3 will complete the rest of navigation.
+	// Drive forwards 1 meter from start point
+	moveForwards(start_point_[0], 1.0, robot_loc_[0]);
 }
 
 }  // namespace navigation
