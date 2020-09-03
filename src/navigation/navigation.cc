@@ -121,7 +121,7 @@ float Navigation::limitVelocity(float vel) {
 }
 
 // Move forward a set amount in a straight line
-void Navigation::moveForwards(float start, float dist, float loc){
+void Navigation::moveForwards(float start, float dist){
 	// Minimum distance where car reaches max velocity in the middle
 	float min_dist = accel_dist_ + decel_dist_;
 
@@ -137,7 +137,7 @@ void Navigation::moveForwards(float start, float dist, float loc){
 
 	// Determine if to accelerate or decelerate
 	float cmd_vel;
-	(loc - start < inflection_dist) ? cmd_vel = max_vel_ : cmd_vel = 0.0;
+	(robot_loc_[0] - start < inflection_dist) ? cmd_vel = max_vel_ : cmd_vel = 0.0;
 
 	// Publish command
 	driveCar(0.0, limitVelocity(cmd_vel));
@@ -163,7 +163,7 @@ void Navigation::Run() {
 	}
 
 	// Drive forwards 1 meter from start point
-	moveForwards(start_point_[0], 1.0, robot_loc_[0]);
+	moveForwards(start_point_[0], 1.0);
 }
 
 }  // namespace navigation
