@@ -136,8 +136,7 @@ void Navigation::moveForwards(float start, float dist){
 	}
 
 	// Determine if to accelerate or decelerate
-	float cmd_vel;
-	(robot_loc_[0] - start < inflection_dist) ? cmd_vel = max_vel_ : cmd_vel = 0.0;
+	float cmd_vel = (robot_loc_[0] - start < inflection_dist) ? max_vel_ : 0.0;
 
 	// Publish command
 	driveCar(0.0, limitVelocity(cmd_vel));
@@ -149,12 +148,6 @@ void Navigation::driveCar(float curvature, float velocity){
 	drive_msg_.curvature = curvature;
 	drive_msg_.velocity = velocity;
 	drive_pub_.publish(drive_msg_);
-}
-
-geometry_msgs::Pose2D ackermannFK(float speed, float curvature, float time)
-{
-	geometry_msgs::Pose2D robot_state;
-	return robot_state;
 }
 
 void Navigation::Run() {

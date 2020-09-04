@@ -76,9 +76,6 @@ class Navigation {
   // Publish a drive command
   void driveCar(float curvature, float velocity);
 
-  // Ackermann forward kinematics
-  geometry_msgs::Pose2D ackermannFK(float speed, float curvature, float time);
-
  private:
 
   // Current robot location.
@@ -100,6 +97,24 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
+};
+
+
+class LatencyCompensator {
+public:
+  LatencyCompensator(float actuation_delay, float observation_delay);
+  void recordNewInput(float curvature, float velocity);
+  geometry_msgs::Pose2D predictedState();
+
+private:
+  std::vector< std::array<float,3> > recordedInputs_; // Record of past inputs in the form (curvature, speed, timestamp)
+  float actuation_delay_;                             // Robot actuation delay (seconds)
+  float observation_delay_;                           // Sensor observation delay (seconds)
+  float system_delay_;                                // Total system delay (ignoring contoller delay) (seconds)
+  float last_observation_time_;                       // Timestamp for when the last sensor state came in 
+  float delta_t_;                                      // Duration of a control loop for the system being compensated
+
+  void trimInputs();
 };
 
 }  // namespace navigation
