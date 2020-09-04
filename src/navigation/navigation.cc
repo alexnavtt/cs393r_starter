@@ -151,6 +151,12 @@ void Navigation::driveCar(float curvature, float velocity){
 	drive_pub_.publish(drive_msg_);
 }
 
+geometry_msgs::Pose2D ackermannFK(float speed, float curvature, float time)
+{
+	geometry_msgs::Pose2D robot_state;
+	return robot_state;
+}
+
 void Navigation::Run() {
 	// Added this section for anything that we only want to happen once (like Arduino Setup function)
 	if  (init_){

@@ -23,6 +23,7 @@
 #include <algorithm>
 
 #include "eigen3/Eigen/Dense"
+#include "geometry_msgs/Pose2D.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -66,13 +67,17 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
-  // Navarro: Added this to scale to acceleration limits
+  // Scale velocities to stay withing acceleration limits
   float limitVelocity(float vel);
 
   // Jennings: Added this to move forwards a set distance in x direction
   void moveForwards(float start, float dist);
 
+  // Publish a drive command
   void driveCar(float curvature, float velocity);
+
+  // Ackermann forward kinematics
+  geometry_msgs::Pose2D ackermannFK(float speed, float curvature, float time);
 
  private:
 
