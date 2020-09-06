@@ -59,7 +59,6 @@ const float dt_ = 1/20.0;
 
 // Robot Parameters
 const float wheelbase_ = 0.5; // NEEDS TO BE MEASURED
-// const float 
 
 // Robot Limits
 const float max_vel_   =  1.0;
