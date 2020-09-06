@@ -99,7 +99,7 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
-
+  // Add a latency compensator
   LatencyCompensator LC_;
 };
 
