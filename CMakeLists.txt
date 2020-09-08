@@ -54,5 +54,9 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation.cc)
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 
+ROSBUILD_ADD_EXECUTABLE(measure_latency
+                        src/navigation/measureLatency.cpp)
+TARGET_LINK_LIBRARIES(measure_latency shared_library ${libs})
+
 ADD_EXECUTABLE(eigen_tutorial
                src/eigen_tutorial.cc)
