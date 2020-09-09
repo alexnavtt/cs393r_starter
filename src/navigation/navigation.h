@@ -36,15 +36,6 @@ namespace ros {
 
 namespace navigation {
 
-struct PathOption {
-  float curvature;
-  float clearance;
-  float free_path_length;
-  Eigen::Vector2f obstruction;
-  Eigen::Vector2f closest_point;
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-};
-
 class Navigation {
  public:
 
@@ -99,6 +90,7 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
+
   // Add a latency compensator
   LatencyCompensator LC_;
 };
