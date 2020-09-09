@@ -88,13 +88,10 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		nav_goal_angle_(0),
 		LC_(0, 0, dt_) 
 {
-	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
-			"ackermann_curvature_drive", 1);
-	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
-	local_viz_msg_ = visualization::NewVisualizationMessage(
-			"base_link", "navigation_local");
-	global_viz_msg_ = visualization::NewVisualizationMessage(
-			"map", "navigation_global");
+	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
+	viz_pub_   = n->advertise<VisualizationMsg>("visualization", 1);
+	local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
+	global_viz_msg_ = visualization::NewVisualizationMessage("map", "navigation_global");
 	InitRosHeader("base_link", &drive_msg_.header);
 }
 
@@ -104,12 +101,14 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
+	robot_loc_ = loc;
+	robot_angle_ = angle;
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 								const Vector2f& vel, float ang_vel) {
-	robot_loc_ = loc;
-	robot_angle_ = angle;
+	odom_loc_ = loc;
+	odom_angle_ = angle;
 	robot_vel_ = vel;
 	robot_omega_ = ang_vel;
 
@@ -141,7 +140,7 @@ void Navigation::moveForwards(float start, float dist){
 	}
 
 	// Determine if to accelerate or decelerate
-	float cmd_vel = (robot_loc_[0] - start < inflection_dist) ? max_vel_ : 0.0;
+	float cmd_vel = (odom_loc_[0] - start < inflection_dist) ? max_vel_ : 0.0;
 
 	// Publish command
 	driveCar(0.0, limitVelocity(cmd_vel));
@@ -163,7 +162,7 @@ void Navigation::Run() {
 			ros::Rate(10).sleep();
 		}
 
-		start_point_ = robot_loc_;
+		start_point_ = odom_loc_;
 	}
 
 	// Drive forwards 1 meter from start point
