@@ -58,7 +58,7 @@ const float kEpsilon = 1e-5;
 const float dt_ = 1/20.0;
 
 // Robot Parameters
-const float wheelbase_ = 0.5; // NEEDS TO BE MEASURED
+const float wheelbase_ = 0.324;
 
 // Robot Limits
 const float max_vel_   =  1.0;
