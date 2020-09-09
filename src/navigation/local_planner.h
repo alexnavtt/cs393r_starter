@@ -42,7 +42,7 @@ private:
 
 	// Private Members
 	std::vector<Obstacle> ObstacleList;
-	std::vector<PathOption>
+	std::vector<PathOption> PossiblePaths;
 
 	float free_path_length_weight_;
 	float clearance_weight_;
