@@ -57,6 +57,9 @@ const float kEpsilon = 1e-5;
 // Delta t of the control loop
 const float dt_ = 1/20.0;
 
+// Robot Parameters
+const float wheelbase_ = 0.5; // NEEDS TO BE MEASURED
+
 // Robot Limits
 const float max_vel_   =  1.0;
 const float min_vel_   = -1.0;
@@ -82,7 +85,9 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		robot_omega_(0),
 		nav_complete_(true),
 		nav_goal_loc_(0, 0),
-		nav_goal_angle_(0) {
+		nav_goal_angle_(0),
+		LC_(0, 0, dt_) 
+{
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
 			"ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);

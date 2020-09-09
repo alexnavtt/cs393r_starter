@@ -21,9 +21,11 @@
 
 #include <vector>
 #include <algorithm>
+#include <list>
 
 #include "eigen3/Eigen/Dense"
 #include "geometry_msgs/Pose2D.h"
+#include "latency_compensator.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -97,24 +99,8 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
-};
-
-
-class LatencyCompensator {
-public:
-  LatencyCompensator(float actuation_delay, float observation_delay);
-  void recordNewInput(float curvature, float velocity);
-  geometry_msgs::Pose2D predictedState();
-
-private:
-  std::vector< std::array<float,3> > recordedInputs_; // Record of past inputs in the form (curvature, speed, timestamp)
-  float actuation_delay_;                             // Robot actuation delay (seconds)
-  float observation_delay_;                           // Sensor observation delay (seconds)
-  float system_delay_;                                // Total system delay (ignoring contoller delay) (seconds)
-  float last_observation_time_;                       // Timestamp for when the last sensor state came in 
-  float delta_t_;                                      // Duration of a control loop for the system being compensated
-
-  void trimInputs();
+  // Add a latency compensator
+  LatencyCompensator LC_;
 };
 
 }  // namespace navigation
