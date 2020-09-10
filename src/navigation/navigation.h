@@ -72,8 +72,8 @@ class Navigation {
   // Scale velocities to stay withing acceleration limits
   float limitVelocity(float vel);
 
-  // Jennings: Added this to move forwards a set distance in x direction
-  void moveForwards(float start, float dist);
+  // Move forwards a set distance in any direction
+  void moveForwards(Eigen::Vector2f& start, float dist);
 
   // Publish a drive command
   void driveCar(float curvature, float velocity);

@@ -24,6 +24,17 @@ void DemoBasics() {
        << "v1.x = " << v1.x() << endl
        << "v1.y = " << v1.y() << endl;
 
+  // Mark: norm test
+  cout << "Get norm of a vector:" <<endl;
+  float v1norm = v1.norm();
+  cout << v1norm << endl;
+
+  // Mark: can you just subtract 2 vectors?
+  Vector2f vsub(2.0, 1.0);
+  vsub = v1 - vsub;
+  cout << "[1, 2] - [2, 1] = [-1, 1]?" << endl
+       << "Result: [" << vsub.x() << ", " << vsub.y() << "]" << endl;
+
   cout << "Write 10 to the x coordinate of v1:" << endl;
   v1.x() = 10.0;
   cout << "v1.x = " << v1.x() << endl;
