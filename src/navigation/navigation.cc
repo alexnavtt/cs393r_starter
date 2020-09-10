@@ -83,13 +83,10 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		nav_goal_angle_(0),
 		LC_(0, 0, dt_) 
 {
-	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
-			"ackermann_curvature_drive", 1);
+	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
-	local_viz_msg_ = visualization::NewVisualizationMessage(
-			"base_link", "navigation_local");
-	global_viz_msg_ = visualization::NewVisualizationMessage(
-			"map", "navigation_global");
+	local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
+	global_viz_msg_ = visualization::NewVisualizationMessage("map", "navigation_global");
 	InitRosHeader("base_link", &drive_msg_.header);
 }
 
@@ -99,12 +96,14 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
+	robot_loc_ = loc;
+	robot_angle_ = angle;
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 								const Vector2f& vel, float ang_vel) {
-	robot_loc_ = loc;
-	robot_angle_ = angle;
+	odom_loc_ = loc;
+	odom_angle_ = angle;
 	robot_vel_ = vel;
 	robot_omega_ = ang_vel;
 
@@ -120,7 +119,7 @@ float Navigation::limitVelocity(float vel) {
 	return          std::max({new_vel, robot_vel_[0] + min_accel_ * dt_, min_vel_});
 }
 
-// Move forward a set amount in a straight line
+// Move forward a set distance in a straight line
 void Navigation::moveForwards(Vector2f& start, float dist){
 	// Update how far you've come and how far to go
 	float dist_traveled = (robot_loc_ - start).norm();
@@ -151,7 +150,7 @@ void Navigation::Run() {
 			ros::Rate(10).sleep();
 		}
 
-		start_point_ = robot_loc_;
+		start_point_ = odom_loc_;
 	}
 
 	// Drive forwards 1 meter from start point

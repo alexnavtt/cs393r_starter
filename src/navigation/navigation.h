@@ -72,7 +72,7 @@ class Navigation {
   // Scale velocities to stay withing acceleration limits
   float limitVelocity(float vel);
 
-  // Move forwards a set distance in any direction
+  // Move forwards a set distance in a straight line
   void moveForwards(Eigen::Vector2f& start, float dist);
 
   // Publish a drive command
