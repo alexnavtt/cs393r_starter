@@ -52,7 +52,8 @@ TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation_main.cc
                         src/navigation/navigation.cc
-                        src/navigation/latency_compensator.cc)
+                        src/navigation/latency_compensator.cc
+                        src/navigation/local_planner.cc)
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(measure_latency
