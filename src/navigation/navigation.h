@@ -69,6 +69,10 @@ class Navigation {
   // Publish a drive command
   void driveCar(float curvature, float velocity);
 
+  // Ackermann functions
+  void AckermannFK(float x_dot, float y_dot, float omega);
+  void AckermannIK(float curvature, float velocity);
+
  private:
 
   // Current robot location.
