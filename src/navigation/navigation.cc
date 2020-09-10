@@ -122,7 +122,7 @@ float Navigation::limitVelocity(float vel) {
 
 // Move forward a set amount in a straight line
 void Navigation::moveForwards(Vector2f& start, float dist){
-	// Update how far you've come
+	// Update how far you've come and how far to go
 	float dist_traveled = (robot_loc_ - start).norm();
 	float dist_to_go = dist - dist_traveled;
 
@@ -130,10 +130,8 @@ void Navigation::moveForwards(Vector2f& start, float dist){
 	float current_speed = robot_vel_.norm();
 	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
 
-	// Determine whether to accel or decel
+	// Determine whether to accel or decel, then publish command
 	float cmd_vel = (dist_to_go > decel_dist) ? max_vel_ : 0.0;
-
-	// Publish command
 	driveCar(0.0, limitVelocity(cmd_vel));
 }
 
