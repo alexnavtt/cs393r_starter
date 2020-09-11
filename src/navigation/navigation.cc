@@ -58,6 +58,8 @@ const float dt_ = 1/20.0;
 
 // Robot Parameters
 const float wheelbase_ = 0.324;
+const float observation_delay_ = 0.0;
+const float actuation_delay_ = 0.0;
 
 // Robot Limits
 const float max_vel_   =  1.0;
@@ -85,7 +87,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		nav_complete_(true),
 		nav_goal_loc_(0, 0),
 		nav_goal_angle_(0),
-		LC_(0, 0, dt_) 
+		LC_(actuation_delay_, observation_delay_, dt_) 
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_   = n->advertise<VisualizationMsg>("visualization", 1);
