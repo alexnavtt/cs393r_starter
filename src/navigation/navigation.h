@@ -25,7 +25,9 @@
 
 #include "eigen3/Eigen/Dense"
 #include "geometry_msgs/Pose2D.h"
+#include "geometry_msgs/Twist.h"
 #include "latency_compensator.h"
+#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -70,8 +72,8 @@ class Navigation {
   void driveCar(float curvature, float velocity);
 
   // Ackermann functions
-  void AckermannFK(float x_dot, float y_dot, float omega);
-  void AckermannIK(float curvature, float velocity);
+  amrl_msgs::AckermannCurvatureDriveMsg AckermannFK(float x_dot, float y_dot, float omega);
+  geometry_msgs::Twist AckermannIK(float curvature, float velocity);
 
  private:
 

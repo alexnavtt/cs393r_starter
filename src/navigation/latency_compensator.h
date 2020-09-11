@@ -3,27 +3,32 @@
 #include "eigen3/Eigen/Dense"
 #include "geometry_msgs/Pose2D.h"
 
+struct state2D{
+  float x, y, theta;
+  float vx, vy, omega;
+};
+
 class LatencyCompensator {
 public:
   LatencyCompensator(float actuation_delay, float observation_delay, float delta_t);
 
   // Setters and Getters
-  float getActuationDelay();
+  double getActuationDelay();
   void  setActuationDelay(float delay);
-  float getObservationDelay();
+  double getObservationDelay();
   void  setObservationDelay(float delay);
-  float getSystemDelay();
+  double getSystemDelay();
 
   void recordNewInput(float x_dot, float y_dot, float omega);
   void recordObservation(float x, float y, float theta);
-  geometry_msgs::Pose2D predictedState();
+  state2D predictedState();
 
 private:
-  std::list< std::array<float,4> > recordedInputs_; // Record of past inputs in the form (curvature, speed, timestamp)
-  float actuation_delay_;                           // Robot actuation delay (seconds)
-  float observation_delay_;                         // Sensor observation delay (seconds)
-  float last_observation_time_;                     // Timestamp for when the last sensor state came in 
-  float delta_t_;                                   // Duration of a control loop for the system being compensated
+  std::list< std::array<double,4> > recordedInputs_; // Record of past inputs in the form (curvature, speed, timestamp)
+  double actuation_delay_;                           // Robot actuation delay (seconds)
+  double observation_delay_;                         // Sensor observation delay (seconds)
+  double last_observation_time_;                     // Timestamp for when the last sensor state came in 
+  double delta_t_;                                   // Duration of a control loop for the system being compensated
 
-  geometry_msgs::Pose2D state_;                     // Last recorded state of the robot
+  state2D state_;                     // Last recorded state of the robot
 };

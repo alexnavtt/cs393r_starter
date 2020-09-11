@@ -22,7 +22,6 @@
 #include "gflags/gflags.h"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
-#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/VisualizationMsg.h"
 #include "glog/logging.h"
@@ -107,10 +106,16 @@ void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
 
 void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 								const Vector2f& vel, float ang_vel) {
-	odom_loc_ = loc;
-	odom_angle_ = angle;
+	// odom_loc_ = loc;
+	// odom_angle_ = angle;
 	robot_vel_ = vel;
 	robot_omega_ = ang_vel;
+
+	LC_.recordObservation(loc[0], loc[1], angle);
+	state2D current_state = LC_.predictedState();
+
+	odom_loc_ = {current_state.x, current_state.y};
+	odom_angle_ = current_state.theta;
 
 	init_ = false;
 }
@@ -152,20 +157,36 @@ void Navigation::driveCar(float curvature, float velocity){
 	drive_msg_.curvature = curvature;
 	drive_msg_.velocity = velocity;
 	drive_pub_.publish(drive_msg_);
+
+	geometry_msgs::Twist cartesian_velocity = AckermannIK(curvature, velocity);
+	LC_.recordNewInput(cartesian_velocity.linear.x, 
+					   cartesian_velocity.linear.y, 
+					   cartesian_velocity.angular.z);
 }
 
 // Preliminary Ackermann functions, subject to change
 // Notation definitely has issues, but math is solid (check Ackermann OneNote)
-void Navigation::AckermannFK(float x_dot, float y_dot, float omega){
+AckermannCurvatureDriveMsg Navigation::AckermannFK(float x_dot, float y_dot, float omega){
 	float theta = atan2(y_dot, x_dot);
 	float velocity = x_dot*cos(theta);
 	float curvature = omega/velocity;
+
+	AckermannCurvatureDriveMsg ackermann_msg;
+	ackermann_msg.velocity = velocity;
+	ackermann_msg.curvature = curvature;
+	return ackermann_msg;
 }
-void Navigation::AckermannIK(float curvature, float velocity){
+geometry_msgs::Twist Navigation::AckermannIK(float curvature, float velocity){
 	float theta = odom_angle_;
 	float x_dot = velocity*cos(theta);
 	float y_dot = velocity*sin(theta);
 	float omega = velocity*curvature;
+
+	geometry_msgs::Twist vel;
+	vel.linear.x = x_dot;
+	vel.linear.y = y_dot;
+	vel.angular.z = omega;
+	return vel;
 }
 
 void Navigation::Run() {
