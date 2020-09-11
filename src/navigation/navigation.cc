@@ -154,6 +154,20 @@ void Navigation::driveCar(float curvature, float velocity){
 	drive_pub_.publish(drive_msg_);
 }
 
+// Preliminary Ackermann functions, subject to change
+// Notation definitely has issues, but math is solid (check Ackermann OneNote)
+void Navigation::AckermannFK(float x_dot, float y_dot, float omega){
+	float theta = atan2(y_dot, x_dot);
+	float velocity = x_dot*cos(theta);
+	float curvature = omega/velocity;
+}
+void Navigation::AckermannIK(float curvature, float velocity){
+	float theta = odom_angle_;
+	float x_dot = velocity*cos(theta);
+	float y_dot = velocity*sin(theta);
+	float omega = velocity*curvature;
+}
+
 void Navigation::Run() {
 	// Added this section for anything that we only want to happen once (like Arduino Setup function)
 	if  (init_){
