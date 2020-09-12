@@ -1,3 +1,6 @@
+#ifndef LATENCY_COMPENSATOR_HH
+#define LATENCY_COMPENSATOR_HH
+
 #include <list>
 #include "ros/ros.h"
 #include "eigen3/Eigen/Dense"
@@ -32,3 +35,5 @@ private:
 
   state2D state_;                     // Last recorded state of the robot
 };
+
+#endif
