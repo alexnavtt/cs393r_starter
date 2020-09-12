@@ -110,14 +110,16 @@ void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 								const Vector2f& vel, float ang_vel) {
 	// odom_loc_ = loc;
 	// odom_angle_ = angle;
-	robot_vel_ = vel;
-	robot_omega_ = ang_vel;
+	// robot_vel_ = vel;
+	// robot_omega_ = ang_vel;
 
 	LC_.recordObservation(loc[0], loc[1], angle);
 	state2D current_state = LC_.predictedState();
 
-	odom_loc_ = {current_state.x, current_state.y};
-	odom_angle_ = current_state.theta;
+	odom_loc_ 	 = {current_state.x, current_state.y};
+	odom_angle_  =  current_state.theta;
+	robot_vel_ 	 = {current_state.vx, current_state.vy};
+	robot_omega_ =  current_state.omega;
 
 	init_ = false;
 }
@@ -160,6 +162,7 @@ void Navigation::driveCar(float curvature, float velocity){
 	drive_msg_.velocity = velocity;
 	drive_pub_.publish(drive_msg_);
 
+	// Record input in the latency compensator
 	geometry_msgs::Twist cartesian_velocity = AckermannIK(curvature, velocity);
 	LC_.recordNewInput(cartesian_velocity.linear.x, 
 					   cartesian_velocity.linear.y, 
