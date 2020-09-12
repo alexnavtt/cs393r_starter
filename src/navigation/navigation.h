@@ -28,6 +28,7 @@
 #include "geometry_msgs/Twist.h"
 #include "latency_compensator.h"
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
+#include "local_planner.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -99,6 +100,8 @@ class Navigation {
 
   // Add a latency compensator
   LatencyCompensator LC_;
+  // Add a greedy local planner
+  LocalPlanner planner_;
 };
 
 }  // namespace navigation
