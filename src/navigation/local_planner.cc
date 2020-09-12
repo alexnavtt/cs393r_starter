@@ -1,13 +1,13 @@
 #include "local_planner.h"
 
-localPlanner::localPlanner()
+LocalPlanner::LocalPlanner()
 {
 	// Set some default values for anything with a non-zero default
 	vision_angle_ = M_PI;
 	free_path_length_weight_ = clearance_weight_ = distance_to_goal_weight_ = 1;
 }
 
-void localPlanner::trimObstacles(float now)
+void LocalPlanner::trimObstacles(float now)
 {
 	float upper_angle = state_.theta + 0.5*vision_angle_;
 	float lower_angle = state_.theta - 0.5*vision_angle_;
@@ -34,7 +34,7 @@ void localPlanner::trimObstacles(float now)
 	}
 }
 
-void localPlanner::importObstacles(std::vector<Eigen::Vector2f> &obstacles)
+void LocalPlanner::importObstacles(std::vector<Eigen::Vector2f> &obstacles)
 {
 	float now = ros::Time::now().toSec();
 	trimObstacles(now);
@@ -42,5 +42,14 @@ void localPlanner::importObstacles(std::vector<Eigen::Vector2f> &obstacles)
 	for (const auto &obs : obstacles)
 	{
 		ObstacleList.push_back(Obstacle {obs, now});
+	}
+}
+
+void LocalPlanner::showPaths()
+{
+	visualization::ClearVisualizationMsg(viz_);
+	for (const auto &path : PossiblePaths)
+	{
+		visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, viz_);	
 	}
 }

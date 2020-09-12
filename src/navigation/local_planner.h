@@ -6,6 +6,8 @@
 #include "geometry_msgs/Pose2D.h"
 #include "eigen3/Eigen/Dense"
 #include "ros/ros.h"
+#include "amrl_msgs/VisualizationMsg.h"
+#include "visualization/visualization.h"
 
 struct PathOption {
 	float curvature;
@@ -21,10 +23,10 @@ struct Obstacle{
 	float timestamp;
 };
 
-class localPlanner{
+class LocalPlanner{
 public:
 	// Constructor
-	localPlanner();
+	LocalPlanner();
 
 	// Setters/Getters
 	void setState(float x, float y, float theta);
@@ -50,7 +52,7 @@ private:
 	// Called by getGreedyPlannerPath
 	void createPossiblePaths();
 	void predictCollisions();
-	void showPaths() const;
+	void showPaths();
 
 	// Private Members
 	std::list<Obstacle> ObstacleList;
@@ -64,6 +66,8 @@ private:
 
 	float obstacle_memory_; 	// Time to keep old obstacles in seconds
 	float vision_angle_;		// The observation angle of the LiDAR in radians (assumed to be symmetrical about the x-axis)
+
+	amrl_msgs::VisualizationMsg viz_;
 };
 
 #endif
