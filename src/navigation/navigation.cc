@@ -60,6 +60,7 @@ const float dt_ = 1/20.0;
 const float wheelbase_ = 0.324;
 const float observation_delay_ = 0.0;
 const float actuation_delay_ = 0.0;
+const float vision_angle_ = 3*M_PI/2;  
 
 // Robot Limits
 const float max_vel_   =  1.0;
@@ -84,10 +85,14 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		robot_angle_(0),
 		robot_vel_(0, 0),
 		robot_omega_(0),
+		LC_(actuation_delay_, observation_delay_, dt_),
 		nav_complete_(true),
 		nav_goal_loc_(0, 0),
 		nav_goal_angle_(0),
-		LC_(actuation_delay_, observation_delay_, dt_) 
+		free_path_length_weight_(1),
+		clearance_weight_(1),
+		distance_to_goal_weight_(1),
+		obstacle_memory_(5)
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_   = n->advertise<VisualizationMsg>("visualization", 1);
@@ -124,7 +129,40 @@ void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 	init_ = false;
 }
 
+void Navigation::trimObstacles(double now)
+{
+	float upper_angle = odom_angle_ + 0.5*vision_angle_;
+	float lower_angle = odom_angle_ - 0.5*vision_angle_;
+
+	for (auto obs = ObstacleList_.begin(); obs != ObstacleList_.end();)	// Clarification: obs is of type std::list<Obstacle>::iterator
+	{
+		// If an obstacle is too old, get rid of it
+		if (now - obs->timestamp > obstacle_memory_) {
+			ObstacleList_.erase(obs);
+			continue;
+		}
+
+		// Check to see where in the reference frame obs lies relative to the robot
+		float obs_angle = atan2(obs->loc[1] - odom_loc_[1], obs->loc[0] - odom_loc_[0]);  				// in the range [-pi, pi]
+
+		// If it is within the field of view (i.e. we have new data) erase the old data
+		if (obs_angle < upper_angle and obs_angle > lower_angle){
+			ObstacleList_.erase(obs);
+		}
+		// Otherwise keep it in memory until it grows stale
+		else{
+			obs++;
+		}
+	}
+}
+
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
+	trimObstacles(time);
+
+	for (const auto &obs : cloud)
+	{
+		ObstacleList_.push_back(Obstacle {obs, time});
+	}
 }
 
 // Limit Velocity to follow both acceleartion and velocity limits
@@ -207,7 +245,6 @@ void Navigation::Run() {
 
 	// Drive forwards 1 meter from start point
 	moveForwards(start_point_[0], 1.0);
-	planner_.showPaths(local_viz_msg_);
 }
 
 }  // namespace navigation

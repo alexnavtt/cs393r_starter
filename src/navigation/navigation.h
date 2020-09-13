@@ -28,7 +28,6 @@
 #include "geometry_msgs/Twist.h"
 #include "latency_compensator.h"
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
-#include "local_planner.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -38,6 +37,21 @@ namespace ros {
 }  // namespace ros
 
 namespace navigation {
+
+struct PathOption {
+  float curvature;
+  float clearance;
+  float free_path_length;
+  Eigen::Vector2f obstruction;
+  Eigen::Vector2f closest_point;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+};
+
+struct Obstacle{
+  Eigen::Vector2f loc;
+  double timestamp;
+};
+
 
 class Navigation {
  public:
@@ -76,7 +90,25 @@ class Navigation {
   amrl_msgs::AckermannCurvatureDriveMsg AckermannFK(float x_dot, float y_dot, float omega);
   geometry_msgs::Twist AckermannIK(float curvature, float velocity);
 
+  /* -------- Local Planner Functions ---------- */
+
+  // Set and get the time before old obstacles are pruned off
+  void setObstacleMemory(float delay);
+  float getObstacleMemory();
+
+  // Set and get the weights for the local planner cost function
+  void setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG);
+  std::vector<float> getLocalPlannerWeights();
+
+  // Visualize the current possible paths from the local planner
+  void showLocalPaths();
+
+  // Get the best path towards the goal
+  PathOption getGreedyPath(Eigen::Vector2f goal_loc);
+
  private:
+
+  /* ----------- Robot State ------------ */
 
   // Current robot location.
   Eigen::Vector2f robot_loc_;
@@ -90,6 +122,10 @@ class Navigation {
   Eigen::Vector2f odom_loc_;
   // Odometry-reported robot angle.
   float odom_angle_;
+  // Add a latency compensator
+  LatencyCompensator LC_;
+
+  /* --------- Global Planning ---------- */
 
   // Whether navigation is complete.
   bool nav_complete_;
@@ -98,10 +134,28 @@ class Navigation {
   // Navigation goal angle.
   float nav_goal_angle_;
 
-  // Add a latency compensator
-  LatencyCompensator LC_;
-  // Add a greedy local planner
-  LocalPlanner planner_;
+  /* --------- Local Planning ---------- */
+
+  // List of all obstalces in memory
+  std::list<Obstacle> ObstacleList_;
+  // List of all paths being considered
+  std::vector<PathOption> PossiblePaths_;
+  // Weights of each measure in the greedy local planner
+  float free_path_length_weight_;
+  float clearance_weight_;
+  float distance_to_goal_weight_;
+  // Time to keep old obstacles in seconds
+  float obstacle_memory_;  
+
+  // Remove from memory any old or deprecated obstacles - called by ObservePointCloud
+  void trimObstacles(double now); // Done -Alex
+
+  // Called by getGreedyPath
+  void createPossiblePaths();
+  void predictCollisions(PathOption path);
+
+
+  // LocalPlanner planner_;
 };
 
 }  // namespace navigation
