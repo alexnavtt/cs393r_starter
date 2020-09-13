@@ -140,9 +140,11 @@ class Navigation {
   std::list<Obstacle> ObstacleList_;
   // List of all paths being considered
   std::vector<PathOption> PossiblePaths_;
-  // Weights of each measure in the greedy local planner
+  // Weight associated with how far the robot is able to travel on a path
   float free_path_length_weight_;
+  // Wieght associated with how far the robot is from the nearest obstacle on a path
   float clearance_weight_;
+  // Weight associated with how close the robot comes to the goal points on a path
   float distance_to_goal_weight_;
   // Time to keep old obstacles in seconds
   float obstacle_memory_;  
