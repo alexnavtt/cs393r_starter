@@ -45,11 +45,11 @@ void LocalPlanner::importObstacles(std::vector<Eigen::Vector2f> &obstacles)
 	}
 }
 
-void LocalPlanner::showPaths()
+void LocalPlanner::showPaths(amrl_msgs::VisualizationMsg &viz)
 {
-	visualization::ClearVisualizationMsg(viz_);
+	visualization::ClearVisualizationMsg(viz);
 	for (const auto &path : PossiblePaths)
 	{
-		visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, viz_);	
+		visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, viz);	
 	}
 }

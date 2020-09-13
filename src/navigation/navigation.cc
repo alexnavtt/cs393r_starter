@@ -207,6 +207,7 @@ void Navigation::Run() {
 
 	// Drive forwards 1 meter from start point
 	moveForwards(start_point_[0], 1.0);
+	planner_.showPaths(local_viz_msg_);
 }
 
 }  // namespace navigation

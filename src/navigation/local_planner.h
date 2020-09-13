@@ -45,6 +45,8 @@ public:
 	void importObstacles(std::vector<Eigen::Vector2f> &obstacles);
 	PathOption getGreedyPath();
 
+	void showPaths(amrl_msgs::VisualizationMsg&);
+
 private:
 	// Called by importOstacles
 	void trimObstacles(float timestamp);
@@ -52,7 +54,6 @@ private:
 	// Called by getGreedyPlannerPath
 	void createPossiblePaths();
 	void predictCollisions();
-	void showPaths();
 
 	// Private Members
 	std::list<Obstacle> ObstacleList;
@@ -66,8 +67,6 @@ private:
 
 	float obstacle_memory_; 	// Time to keep old obstacles in seconds
 	float vision_angle_;		// The observation angle of the LiDAR in radians (assumed to be symmetrical about the x-axis)
-
-	amrl_msgs::VisualizationMsg viz_;
 };
 
 #endif
