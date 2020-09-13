@@ -49,6 +49,10 @@ state2D LatencyCompensator::predictedState()
 
 	// Determine how long ago inputs went stale (i.e. they occured before the latest observation)
 	double cutoff_time = last_observation_time_ - actuation_delay_;
+	double input_cutoff_time = ros::Time::now().toSec() - actuation_delay_;
+
+	// Will become true when we find the input that is currently being executed on the car
+	bool found_input = false;
 
 	// Iterate through inputs and forward predict the current state
 	for (auto input_stamped = recordedInputs_.begin(); input_stamped != recordedInputs_.end();)
@@ -58,6 +62,16 @@ state2D LatencyCompensator::predictedState()
 		{
 			input_stamped = recordedInputs_.erase(input_stamped); 
 			continue;
+		}
+
+		// Find the input currently being executed
+		if (not found_input and (input_stamped->at(3) >= input_cutoff_time) )
+		{
+			predicted_state.vx = input_stamped->at(0);
+			predicted_state.vy = input_stamped->at(1);
+			predicted_state.omega = input_stamped->at(2);
+
+			found_input = true;
 		}
 		
 		// Use recent inputs to forward predict state of the robot
@@ -70,15 +84,6 @@ state2D LatencyCompensator::predictedState()
 			input_stamped++;
 		}
 	}
-
-	// For if all inputs were deleted, then the robot's velocity is assumed to be the last commanded velocity
-	if ( recordedInputs_.empty() ) return predicted_state;
-
-	// Assuming that the car will instantaneously go to whatever speed we command it to
-	auto current_input = recordedInputs_.begin();
-	predicted_state.vx = current_input->at(0);
-	predicted_state.vy = current_input->at(1);
-	predicted_state.omega = current_input->at(2);
 
 	return predicted_state;
 }
