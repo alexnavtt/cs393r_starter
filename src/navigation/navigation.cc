@@ -166,11 +166,10 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 	}
 }
 
-// Return free path length of a given path (WIP)
-float Navigation::predictCollisions(PathOption path){
-	free_path_length = vision_range_;
-
-	return free_path_length;
+// Fill out various metrics for a certain path
+// free path length, clearance, distance to goal...
+void Navigation::predictCollisions(PathOption path){
+	
 }
 
 // Limit Velocity to follow both acceleration and velocity limits
