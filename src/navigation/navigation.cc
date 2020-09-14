@@ -61,6 +61,7 @@ const float wheelbase_ = 0.324;
 const float observation_delay_ = 0.0;
 const float actuation_delay_ = 0.0;
 const float vision_angle_ = 3*M_PI/2;  
+const float vision_range_ = 10; // based on sim, grid squares are 2m
 
 // Robot Limits
 const float max_vel_   =  1.0;
@@ -165,6 +166,13 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 	}
 }
 
+// Return free path length of a given path (WIP)
+float Navigation::predictCollisions(PathOption path){
+	free_path_length = vision_range_;
+
+	return free_path_length;
+}
+
 // Limit Velocity to follow both acceleration and velocity limits
 float Navigation::limitVelocity(float vel) {
 	float new_vel = std::min({vel,     robot_vel_[0] + max_accel_ * dt_, max_vel_});
@@ -199,8 +207,7 @@ void Navigation::driveCar(float curvature, float velocity){
 					   cartesian_velocity.angular.z);
 }
 
-// Preliminary Ackermann functions, subject to change
-// Notation definitely has issues, but math is solid (check Ackermann OneNote)
+// Ackerman Forward/Inverse Kinematics
 AckermannCurvatureDriveMsg Navigation::AckermannFK(float x_dot, float y_dot, float omega){
 	float theta = atan2(y_dot, x_dot);
 	float velocity = x_dot*cos(theta);
@@ -236,7 +243,7 @@ void Navigation::Run() {
 	}
 
 	// Drive forwards 1 meter from start point
-	moveForwards(start_point_, 1.0);
+	moveForwards(start_point_, 10.0);
 	// driveCar(0.0, 1.0);
 }
 

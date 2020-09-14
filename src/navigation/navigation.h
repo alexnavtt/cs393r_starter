@@ -136,7 +136,7 @@ class Navigation {
 
   /* --------- Local Planning ---------- */
 
-  // List of all obstalces in memory
+  // List of all obstacles in memory
   std::list<Obstacle> ObstacleList_;
   // List of all paths being considered
   std::vector<PathOption> PossiblePaths_;
