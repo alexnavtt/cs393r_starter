@@ -165,31 +165,23 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 	}
 }
 
-// Limit Velocity to follow both acceleartion and velocity limits
+// Limit Velocity to follow both acceleration and velocity limits
 float Navigation::limitVelocity(float vel) {
 	float new_vel = std::min({vel,     robot_vel_[0] + max_accel_ * dt_, max_vel_});
 	return          std::max({new_vel, robot_vel_[0] + min_accel_ * dt_, min_vel_});
 }
 
-// Move forward a set amount in a straight line
-void Navigation::moveForwards(float start, float dist){
-	// Minimum distance where car reaches max velocity in the middle
-	float min_dist = accel_dist_ + decel_dist_;
+void Navigation::moveForwards(Vector2f& start, float dist){
+	// Update how far you've come and how far to go
+	float dist_traveled = (odom_loc_ - start).norm();
+	float dist_to_go = dist - dist_traveled;
 
-	// Solve for distance at which to start decelerating
-	float inflection_dist;
-	if (dist >= min_dist) {
-		// Normal operation: speed up, cruise at that velocity, and then slow down
-		inflection_dist = dist - decel_dist_;
-	}else{
-		// Car does not reach max velocity, inflection point is interpolated
-		inflection_dist = dist*(max_accel_/(max_accel_-min_accel_));
-	}
+	// Update current velocity and solve for necessary stopping distance
+	float current_speed = robot_vel_.norm();
+	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
 
-	// Determine if to accelerate or decelerate
-	float cmd_vel = (odom_loc_[0] - start < inflection_dist) ? max_vel_ : 0.0;
-
-	// Publish command
+	// Determine whether to accel or decel, then publish command
+	float cmd_vel = (dist_to_go > decel_dist) ? max_vel_ : 0.0;
 	driveCar(0.0, limitVelocity(cmd_vel));
 }
 
@@ -244,7 +236,8 @@ void Navigation::Run() {
 	}
 
 	// Drive forwards 1 meter from start point
-	moveForwards(start_point_[0], 1.0);
+	moveForwards(start_point_, 1.0);
+	// driveCar(0.0, 1.0);
 }
 
 }  // namespace navigation
