@@ -90,6 +90,9 @@ class Navigation {
   amrl_msgs::AckermannCurvatureDriveMsg AckermannFK(float x_dot, float y_dot, float omega);
   geometry_msgs::Twist AckermannIK(float curvature, float velocity);
 
+  // Get Robot State
+  geometry_msgs::Pose2D getOdomPose() const;
+
   /* -------- Local Planner Functions ---------- */
 
   // Set and get the time before old obstacles are pruned off
@@ -101,7 +104,8 @@ class Navigation {
   std::vector<float> getLocalPlannerWeights();
 
   // Visualize the current possible paths from the local planner
-  void showLocalPaths();
+  void showLocalPaths() const;
+  void showObstacles() const;
 
   // Get the best path towards the goal
   PathOption getGreedyPath(Eigen::Vector2f goal_loc);
@@ -148,12 +152,14 @@ class Navigation {
   float distance_to_goal_weight_;
   // Time to keep old obstacles in seconds
   float obstacle_memory_;  
+  // Obstacle Clearnace
+  float clearance_;
 
   // Remove from memory any old or deprecated obstacles - called by ObservePointCloud
   void trimObstacles(double now); // Done -Alex
 
   // Called by getGreedyPath
-  void createPossiblePaths();
+  void createPossiblePaths(float num);
   void predictCollisions(PathOption path);
 
 

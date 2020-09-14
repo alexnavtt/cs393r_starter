@@ -62,6 +62,7 @@ const float observation_delay_ = 0.0;
 const float actuation_delay_ = 0.0;
 const float vision_angle_ = 3*M_PI/2;  
 const float vision_range_ = 10; // based on sim, grid squares are 2m
+const float curvature_max_ = 1/1.0;
 
 // Robot Limits
 const float max_vel_   =  1.0;
@@ -93,13 +94,22 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		free_path_length_weight_(1),
 		clearance_weight_(1),
 		distance_to_goal_weight_(1),
-		obstacle_memory_(5)
+		obstacle_memory_(0)
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_   = n->advertise<VisualizationMsg>("visualization", 1);
 	local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
 	global_viz_msg_ = visualization::NewVisualizationMessage("map", "navigation_global");
 	InitRosHeader("base_link", &drive_msg_.header);
+}
+
+geometry_msgs::Pose2D Navigation::getOdomPose() const
+{
+	geometry_msgs::Pose2D pose;
+	pose.x = odom_loc_[0];
+	pose.y = odom_loc_[1];
+	pose.theta = odom_angle_;
+	return pose;
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -132,23 +142,24 @@ void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 
 void Navigation::trimObstacles(double now)
 {
-	float upper_angle = odom_angle_ + 0.5*vision_angle_;
-	float lower_angle = odom_angle_ - 0.5*vision_angle_;
+	float upper_angle =  0.5*vision_angle_;
+	float lower_angle = -0.5*vision_angle_;
 
 	for (auto obs = ObstacleList_.begin(); obs != ObstacleList_.end();)	// Clarification: obs is of type std::list<Obstacle>::iterator
 	{
 		// If an obstacle is too old, get rid of it
 		if (now - obs->timestamp > obstacle_memory_) {
-			ObstacleList_.erase(obs);
+			obs = ObstacleList_.erase(obs);
 			continue;
 		}
 
 		// Check to see where in the reference frame obs lies relative to the robot
-		float obs_angle = atan2(obs->loc[1] - odom_loc_[1], obs->loc[0] - odom_loc_[0]);  				// in the range [-pi, pi]
-
+		float obs_angle = atan2(obs->loc[1], obs->loc[0]);  // in the range [-pi, pi]
+		float range = obs->loc.norm();
+		
 		// If it is within the field of view (i.e. we have new data) erase the old data
-		if (obs_angle < upper_angle and obs_angle > lower_angle){
-			ObstacleList_.erase(obs);
+		if (obs_angle < upper_angle and obs_angle > lower_angle and range < vision_range_ ){
+			obs = ObstacleList_.erase(obs);
 		}
 		// Otherwise keep it in memory until it grows stale
 		else{
@@ -159,10 +170,37 @@ void Navigation::trimObstacles(double now)
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 	trimObstacles(time);
+	ROS_INFO("%zd", ObstacleList_.size());
 
-	for (const auto &obs : cloud)
+	for (const auto &obs_loc : cloud)
 	{
-		ObstacleList_.push_back(Obstacle {obs, time});
+		ObstacleList_.push_back(Obstacle {obs_loc, time});
+	}
+}
+
+void Navigation::showObstacles() const
+{
+	int i = 0;
+	for (const auto &obs : ObstacleList_)
+	{
+		if (i == 2) {i = 0; continue;}
+		visualization::DrawCross(obs.loc, 0.1, 0x000000, local_viz_msg_);
+		i++;
+	}
+}
+
+void Navigation::createPossiblePaths(float num)
+{
+	PossiblePaths_.clear();
+
+	float curve_increment = 2*curvature_max_/num;
+	for (int i = 0; i < num; i++)
+	{
+		PossiblePaths_.push_back(PathOption {-curvature_max_ + i*curve_increment, 	// curvature
+											clearance_,								// clearance
+											100,									// free path length
+											{100,100},								// obstruction location
+											{100,100}});							// closest point location
 	}
 }
 
@@ -232,6 +270,9 @@ geometry_msgs::Twist Navigation::AckermannIK(float curvature, float velocity){
 
 void Navigation::Run() {
 	// Added this section for anything that we only want to happen once (like Arduino Setup function)
+	visualization::ClearVisualizationMsg(local_viz_msg_);
+	visualization::ClearVisualizationMsg(global_viz_msg_);
+
 	if  (init_){
 		while (init_ and ros::ok()){
 			ros::spinOnce();
@@ -242,8 +283,12 @@ void Navigation::Run() {
 	}
 
 	// Drive forwards 1 meter from start point
-	moveForwards(start_point_, 10.0);
-	// driveCar(0.0, 1.0);
+	// moveForwards(start_point_, 10.0);
+	showObstacles();
+	driveCar(0.0, 1.0);
+
+	viz_pub_.publish(local_viz_msg_);
+	viz_pub_.publish(global_viz_msg_);
 }
 
 }  // namespace navigation
