@@ -199,10 +199,10 @@ void Navigation::createPossiblePaths(float num)
 	for (int i = 0; i < num; i++)
 	{
 		PossiblePaths_.push_back(PathOption {-curvature_max_ + i*curve_increment, 	// curvature
-											clearance_,								// clearance
-											100,									// free path length
-											{100,100},								// obstruction location
-											{100,100}});							// closest point location
+											0,										// clearance
+											0,										// free path length
+											{0,0},									// obstruction location
+											{0,0}});								// closest point location
 	}
 }
 
