@@ -94,7 +94,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		free_path_length_weight_(1),
 		clearance_weight_(1),
 		distance_to_goal_weight_(1),
-		obstacle_memory_(0)
+		obstacle_memory_(10)
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_   = n->advertise<VisualizationMsg>("visualization", 1);
@@ -137,13 +137,16 @@ void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 	robot_vel_ 	 = {current_state.vx, current_state.vy};
 	robot_omega_ =  current_state.omega;
 
+	R_odom2base_ << cos(odom_angle_), -sin(odom_angle_),
+				    sin(odom_angle_),  cos(odom_angle_);
+
 	init_ = false;
 }
 
 void Navigation::trimObstacles(double now)
 {
-	float upper_angle =  0.5*vision_angle_;
-	float lower_angle = -0.5*vision_angle_;
+	float upper_angle = odom_angle_ + 0.49*vision_angle_;
+	float lower_angle = odom_angle_ - 0.49*vision_angle_;
 
 	for (auto obs = ObstacleList_.begin(); obs != ObstacleList_.end();)	// Clarification: obs is of type std::list<Obstacle>::iterator
 	{
@@ -154,11 +157,10 @@ void Navigation::trimObstacles(double now)
 		}
 
 		// Check to see where in the reference frame obs lies relative to the robot
-		float obs_angle = atan2(obs->loc[1], obs->loc[0]);  // in the range [-pi, pi]
-		float range = obs->loc.norm();
+		float obs_angle = atan2(obs->loc[1] - odom_loc_[1], obs->loc[0] - odom_loc_[0]);  // in the range [-pi, pi]
 		
 		// If it is within the field of view (i.e. we have new data) erase the old data
-		if (obs_angle < upper_angle and obs_angle > lower_angle and range < vision_range_ ){
+		if (obs_angle < upper_angle and obs_angle > lower_angle){
 			obs = ObstacleList_.erase(obs);
 		}
 		// Otherwise keep it in memory until it grows stale
@@ -170,22 +172,22 @@ void Navigation::trimObstacles(double now)
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 	trimObstacles(time);
-	ROS_INFO("%zd", ObstacleList_.size());
 
-	for (const auto &obs_loc : cloud)
+	for (auto &obs_loc : cloud)
 	{
-		ObstacleList_.push_back(Obstacle {obs_loc, time});
+		ObstacleList_.push_back(Obstacle {BaseLink2Odom(obs_loc), time});
 	}
 }
 
-void Navigation::showObstacles() const
+void Navigation::showObstacles()
 {
 	int i = 0;
+	int cutoff_count = ObstacleList_.size()/1000;
 	for (const auto &obs : ObstacleList_)
 	{
-		if (i == 2) {i = 0; continue;}
-		visualization::DrawCross(obs.loc, 0.1, 0x000000, local_viz_msg_);
-		i++;
+		if (i != cutoff_count) {i++; continue;} // ensure that no more than 1000 obstacles are displayed
+		visualization::DrawCross(Odom2BaseLink(obs.loc), 0.1, 0x000000, local_viz_msg_);
+		i = 0;
 	}
 }
 
@@ -268,6 +270,11 @@ geometry_msgs::Twist Navigation::AckermannIK(float curvature, float velocity){
 	return vel;
 }
 
+// Frame Transformations
+Eigen::Vector2f Navigation::BaseLink2Odom(Eigen::Vector2f p) {return odom_loc_ + R_odom2base_*p;}
+Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base_.transpose()*(p - odom_loc_);}
+
+// Main Loop
 void Navigation::Run() {
 	// Added this section for anything that we only want to happen once (like Arduino Setup function)
 	visualization::ClearVisualizationMsg(local_viz_msg_);

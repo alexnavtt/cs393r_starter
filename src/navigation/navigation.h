@@ -93,6 +93,9 @@ class Navigation {
   // Get Robot State
   geometry_msgs::Pose2D getOdomPose() const;
 
+  Eigen::Vector2f BaseLink2Odom(Eigen::Vector2f p);
+  Eigen::Vector2f Odom2BaseLink(Eigen::Vector2f p);
+
   /* -------- Local Planner Functions ---------- */
 
   // Set and get the time before old obstacles are pruned off
@@ -104,8 +107,8 @@ class Navigation {
   std::vector<float> getLocalPlannerWeights();
 
   // Visualize the current possible paths from the local planner
-  void showLocalPaths() const;
-  void showObstacles() const;
+  void showLocalPaths();
+  void showObstacles();
 
   // Get the best path towards the goal
   PathOption getGreedyPath(Eigen::Vector2f goal_loc);
@@ -128,6 +131,10 @@ class Navigation {
   float odom_angle_;
   // Add a latency compensator
   LatencyCompensator LC_;
+
+  /* ------ Frame Transformations ------ */
+  Eigen::Matrix2f R_odom2base_;
+  Eigen::Matrix2f R_map2odom_;
 
   /* --------- Global Planning ---------- */
 
