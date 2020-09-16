@@ -27,6 +27,7 @@
 #include "glog/logging.h"
 #include "ros/ros.h"
 #include "stdio.h" // Mark added
+
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
@@ -80,10 +81,6 @@ const float min_vel_   = -1.0;
 const float max_accel_ =  4.0;
 const float min_accel_ = -4.0;
 
-// Minimum distance needed for the car to accelerate/decelerate fully
-const float accel_dist_ =  0.5*max_vel_*max_vel_/max_accel_;
-const float decel_dist_ = -0.5*max_vel_*max_vel_/min_accel_;
-
 // Variables to deal with this dumb way of doing things
 Eigen::Vector2f start_point_;
 
@@ -131,7 +128,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		obstacle_memory_(10)
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
-	viz_pub_   = n->advertise<VisualizationMsg>("visualization", 1);
+	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
 	local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
 	global_viz_msg_ = visualization::NewVisualizationMessage("map", "navigation_global");
 	InitRosHeader("base_link", &drive_msg_.header);
@@ -398,9 +395,16 @@ float Navigation::limitVelocity(float vel) {
 	return          std::max({new_vel, robot_vel_[0] + min_accel_ * dt_, min_vel_});
 }
 
+<<<<<<< HEAD
 void Navigation::moveForwards(Vector2f& start, float dist){
 	// Update how far you've come and how far to go
 	float dist_traveled = (odom_loc_ - start).norm();
+=======
+// Move forward a set distance in a straight line
+void Navigation::moveForwards(Vector2f& start, float dist){
+	// Update how far you've come and how far to go
+	float dist_traveled = (robot_loc_ - start).norm();
+>>>>>>> ec59c854d2c57335e426997d1df5a90d715de4d4
 	float dist_to_go = dist - dist_traveled;
 
 	// Update current velocity and solve for necessary stopping distance
@@ -478,6 +482,7 @@ void Navigation::Run() {
 		start_point_ = odom_loc_;
 	}
 
+<<<<<<< HEAD
 	// Pseudocode:
 	// createPossiblePaths(5);
 	// for each path:
@@ -497,6 +502,10 @@ void Navigation::Run() {
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
+=======
+	// Drive forwards 1 meter from start point
+	moveForwards(start_point_, 1.0);
+>>>>>>> ec59c854d2c57335e426997d1df5a90d715de4d4
 }
 
 }  // namespace navigation
