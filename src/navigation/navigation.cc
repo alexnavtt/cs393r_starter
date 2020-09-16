@@ -92,7 +92,7 @@ bool init_ = true;
 
 namespace navigation {
 
-bool isBetween(const Point p0, const Point p1, const Point p2, const Point p)
+bool isBetween(const Vector2f p0, const Vector2f p1, const Vector2f p2, const Vector2f p)
 {
 	/* Determine if p is inside the cone defined by p0, p1, and p2 
 	    p2
@@ -182,6 +182,9 @@ void Navigation::trimObstacles(double now)
 	float upper_angle = odom_angle_ + 0.49*vision_angle_;
 	float lower_angle = odom_angle_ - 0.49*vision_angle_;
 
+	Vector2f lower_lim_point = BaseLink2Odom({cos(lower_angle), sin(lower_angle)});
+	Vector2f upper_lim_point = BaseLink2Odom({cos(upper_angle), sin(upper_angle)});
+
 	for (auto obs = ObstacleList_.begin(); obs != ObstacleList_.end();)	// Clarification: obs is of type std::list<Obstacle>::iterator
 	{
 		// If an obstacle is too old, get rid of it
@@ -191,10 +194,10 @@ void Navigation::trimObstacles(double now)
 		}
 
 		// Check to see where in the reference frame obs lies relative to the robot
-		float obs_angle = atan2(obs->loc[1] - odom_loc_[1], obs->loc[0] - odom_loc_[0]);  // in the range [-pi, pi]
+		// float obs_angle = atan2(obs->loc[1] - odom_loc_[1], obs->loc[0] - odom_loc_[0]);  // in the range [-pi, pi]
 		
 		// If it is within the field of view (i.e. we have new data) erase the old data
-		if (obs_angle < upper_angle and obs_angle > lower_angle){
+		if (isBetween(odom_loc_, lower_lim_point, upper_lim_point, obs->loc)){
 			obs = ObstacleList_.erase(obs);
 		}
 		// Otherwise keep it in memory until it grows stale
@@ -328,7 +331,7 @@ void Navigation::calculateClearance(PathOption &path){
 	std::string turning_direction = (path.curvature <= 0 ? "right" : "left");
 
 	// Find the geometry of the turning motion
-	Point turning_center = odom_loc_ + turning_radius * Point( {-sin(odom_angle_), cos(odom_angle_)} );
+	Vector2f turning_center = BaseLink2Odom({0, turning_radius});
 	float turning_angle = path.free_path_length * path.curvature;
 
 	Eigen::Matrix2f rotation;
@@ -336,19 +339,17 @@ void Navigation::calculateClearance(PathOption &path){
 				sin(turning_angle),  cos(turning_angle);
 
 	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
-	Point end_point = rotation * (odom_loc_ - turning_center) + turning_center;
+	Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
 
 	// // Define the cone the encompasses all the obstacles of interest
-	Point start_point = (turning_direction == "left" ? odom_loc_ : end_point);
-	end_point   	  = (turning_direction == "left" ? end_point : odom_loc_);
+	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
+	end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
 
 	// Iterate through obstacles to find the one with the minimum clearance
 	float min_clearance = vision_range_;
 	Eigen::Vector2f closest_obs;
 	for (const auto &obs : ObstacleList_)
 	{
-		// float obs_angle = atan2(obs.loc[1] - turning_center[1], obs.loc[0] - turning_center[0]);
-
 		if (isBetween(turning_center, start_point, end_point, obs.loc))
 		{
 			float clearance = abs( (obs.loc - turning_center).norm() - abs(turning_radius) );
@@ -363,7 +364,6 @@ void Navigation::calculateClearance(PathOption &path){
 
 	// Draw the closest obstacle which gives min clearance
 	visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
-	// ROS_INFO("Closest Obstacle: (%.2f, %.2f)", closest_obs[0], closest_obs[1]);
 
 	path.clearance = min_clearance;
 }
@@ -453,9 +453,14 @@ void Navigation::Run() {
 	//   assignCost
 	// executeBestPath(path_with_lowest_cost)
 
-	PathOption test_path{0.1, 0, 0, {0,0}, {0,0}};	//10m radius
+	PathOption test_path{1e-5, 0, 0, {0,0}, {0,0}};	//10m radius
 	predictCollisions(test_path);
+	calculateClearance(test_path);
 	std::cout << "free path length: " << test_path.free_path_length << std::endl;
+
+	driveCar(test_path.curvature, 0.0);
+
+	showObstacles();
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);

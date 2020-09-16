@@ -52,9 +52,6 @@ struct Obstacle{
   double timestamp;
 };
 
-typedef Eigen::Vector2f Point;
-
-
 class Navigation {
  public:
 
