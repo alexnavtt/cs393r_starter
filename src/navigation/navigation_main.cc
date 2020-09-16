@@ -46,6 +46,7 @@
 #include "shared/ros/ros_helpers.h"
 
 #include "navigation.h"
+#include "amrl_msgs/Localization2DMsg.h" // put this line at the top with other include lines
 
 using math_util::DegToRad;
 using math_util::RadToDeg;
@@ -58,6 +59,7 @@ using ros_helpers::SetRosVector;
 using std::string;
 using std::vector;
 using Eigen::Vector2f;
+using amrl_msgs::Localization2DMsg; // put this line below include lines
 
 // Create command line arguments
 DEFINE_string(laser_topic, "scan", "Name of ROS topic for LIDAR data");
@@ -115,11 +117,11 @@ void SignalHandler(int) {
   run_ = false;
 }
 
-void LocalizationCallback(const geometry_msgs::Pose2D& msg) {
+void LocalizationCallback(const amrl_msgs::Localization2DMsg msg) {
   if (FLAGS_v > 0) {
     printf("Localization t=%f\n", GetWallTime());
   }
-  navigation_->UpdateLocation(Vector2f(msg.x, msg.y), msg.theta);
+  navigation_->UpdateLocation(Vector2f(msg.pose.x, msg.pose.y), msg.pose.theta);
 }
 
 int main(int argc, char** argv) {
