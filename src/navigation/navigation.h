@@ -47,6 +47,11 @@ struct PathOption {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
+best_path.curvature
+best_path.free_path_length
+
+
+
 struct Obstacle{
   Eigen::Vector2f loc;
   double timestamp;
@@ -81,6 +86,9 @@ class Navigation {
 
   // Jennings: Added this to move forwards a set distance in x direction
   void moveForwards(Eigen::Vector2f& start, float dist);
+
+  // Crawford: Move on a curvature
+  void moveCurvy(PathOption best_path);
 
   // Publish a drive command
   void driveCar(float curvature, float velocity);

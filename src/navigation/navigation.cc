@@ -292,26 +292,23 @@ void Navigation::predictCollisions(PathOption& path){
 			float y = r-rp*cos(phi);
 			p_current = {(b+l)/2+m, y};
 		}
-		else collision_point = false;
+		else continue;
 		
-		if (collision_point)
-		{
-			// Use law of cosines to compute free path length
-			float side_length = (p_future-p_current).norm();
-			float theta = acos((side_length*side_length-2*rp*rp)/(-2*rp*rp));
-			// Solve for free path length of the current point
-			float fpl_current = theta*r;
-			// If this is the first collision, record this as the smallest fpl so far
-			if (first_collision){
-				fpl_min = fpl_current;
-				p_closest = p_future;
-				first_collision = false;
-			}
-			// Only keep this value if it is the smallest fpl so far
-			else if (fpl_current < fpl_min){
-				fpl_min = fpl_current;
-				p_closest = p_future;
-			}
+		// Use law of cosines to compute free path length
+		float side_length = (p_future-p_current).norm();
+		float theta = acos((side_length*side_length-2*rp*rp)/(-2*rp*rp));
+		// Solve for free path length of the current point
+		float fpl_current = theta*r;
+		// If this is the first collision, record this as the smallest fpl so far
+		if (first_collision){
+			fpl_min = fpl_current;
+			p_closest = p_future;
+			first_collision = false;
+		}
+		// Only keep this value if it is the smallest fpl so far
+		else if (fpl_current < fpl_min){
+			fpl_min = fpl_current;
+			p_closest = p_future;
 		}
 	}
 	// Depict closest point with big green X
