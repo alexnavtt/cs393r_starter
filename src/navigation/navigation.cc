@@ -249,8 +249,8 @@ void Navigation::predictCollisions(PathOption& path){
 	float rdiff = (c-pdiff).norm();
 	float rmax = (c-pmax).norm();
 
-	// Minimum free path length so far as for loop executes
-	float fpl_min = -1.0;	// If no obstacles, fpl will stay -1
+	// Minimum free path length so far
+	float fpl_min = 10;	// range of lidar
 	Vector2f p_closest(0,0);
 
 	bool first_collision = true;
@@ -302,6 +302,7 @@ void Navigation::predictCollisions(PathOption& path){
 	}
 	// Depict closest point with big green X
 	visualization::DrawCross(p_closest, 0.5, 0x00ff00, local_viz_msg_);
+	// visualization::DrawArc(c, r, odom_angle_, odom_angle_ + 1, 0x00ff00, local_viz_msg_);
 	path.closest_point = p_closest;
 	path.free_path_length = fpl_min;
 }
@@ -483,7 +484,7 @@ void Navigation::Run() {
 	//   assignCost
 	// executeBestPath(path_with_lowest_cost)
 
-	PathOption test_path{1e-5, 0, 0, {0,0}, {0,0}, {0,0}};	//10m radius
+	PathOption test_path{1e-5, 0, 0, {0,0}, {0,0}, {0,0}};
 	predictCollisions(test_path);
 	calculateClearance(test_path);
 	std::cout << "free path length: " << test_path.free_path_length << std::endl;
