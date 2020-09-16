@@ -48,11 +48,6 @@ struct PathOption {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
-best_path.curvature
-best_path.free_path_length
-
-
-
 struct Obstacle{
   Eigen::Vector2f loc;
   double timestamp;
