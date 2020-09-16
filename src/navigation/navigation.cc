@@ -395,16 +395,9 @@ float Navigation::limitVelocity(float vel) {
 	return          std::max({new_vel, robot_vel_[0] + min_accel_ * dt_, min_vel_});
 }
 
-<<<<<<< HEAD
 void Navigation::moveForwards(Vector2f& start, float dist){
 	// Update how far you've come and how far to go
 	float dist_traveled = (odom_loc_ - start).norm();
-=======
-// Move forward a set distance in a straight line
-void Navigation::moveForwards(Vector2f& start, float dist){
-	// Update how far you've come and how far to go
-	float dist_traveled = (robot_loc_ - start).norm();
->>>>>>> ec59c854d2c57335e426997d1df5a90d715de4d4
 	float dist_to_go = dist - dist_traveled;
 
 	// Update current velocity and solve for necessary stopping distance
@@ -482,7 +475,6 @@ void Navigation::Run() {
 		start_point_ = odom_loc_;
 	}
 
-<<<<<<< HEAD
 	// Pseudocode:
 	// createPossiblePaths(5);
 	// for each path:
@@ -502,10 +494,6 @@ void Navigation::Run() {
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
-=======
-	// Drive forwards 1 meter from start point
-	moveForwards(start_point_, 1.0);
->>>>>>> ec59c854d2c57335e426997d1df5a90d715de4d4
 }
 
 }  // namespace navigation
