@@ -44,6 +44,7 @@ struct PathOption {
   float free_path_length;
   Eigen::Vector2f obstruction;
   Eigen::Vector2f closest_point;
+  Eigen::Vector2f end_point; 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
