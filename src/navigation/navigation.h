@@ -52,6 +52,8 @@ struct Obstacle{
   double timestamp;
 };
 
+typedef Eigen::Vector2f Point;
+
 
 class Navigation {
  public:
@@ -168,6 +170,7 @@ class Navigation {
   // Called by getGreedyPath
   void createPossiblePaths(float num);
   void predictCollisions(PathOption path);
+  void calculateClearance(PathOption &path);
 
 
   // LocalPlanner planner_;

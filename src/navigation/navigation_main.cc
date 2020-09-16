@@ -89,7 +89,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   for (float theta = msg.angle_min; theta <= msg.angle_max; theta += msg.angle_increment)
   {
     float range = msg.ranges.at(iter);
-    if (range <= msg.range_min or range >= 0.95*msg.range_max) {iter++; continue;}
+    if (range <= msg.range_min or range >= 0.95*msg.range_max) {iter++; continue;} // Factor of 0.95 keeps max range from registering as an obstacle
 
     point_cloud_.push_back(Vector2f {kLaserLoc[0] + range*cos(theta),
                                      kLaserLoc[1] + range*sin(theta)});

@@ -32,6 +32,7 @@
 #include "shared/ros/ros_helpers.h"
 #include "navigation.h"
 #include "visualization/visualization.h"
+#include <string>
 
 using Eigen::Vector2f;
 using amrl_msgs::AckermannCurvatureDriveMsg;
@@ -81,6 +82,30 @@ bool init_ = true;
 } //namespace
 
 namespace navigation {
+
+bool isBetween(const Point p0, const Point p1, const Point p2, const Point p)
+{
+	/* Determine if p is inside the cone defined by p0, p1, and p2 
+	    p2
+	   /
+	  /
+	p0
+	  \      p
+	   \
+	    p1
+	*/
+
+	float angle_p1 = atan2(p1[1] - p0[1], p1[0] - p0[0]);
+	float angle_p2 = atan2(p2[1] - p0[1], p2[0] - p0[0]);
+	float angle_p  = atan2( p[1] - p0[1],  p[0] - p0[0]);
+
+	if (angle_p1 > 0 and angle_p2 < 0){
+		return (angle_p > angle_p1 or angle_p1 < angle_p2);
+	}
+	else{
+		return (angle_p > angle_p1 and angle_p < angle_p2);
+	}
+}
 
 Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		robot_loc_(0, 0),
@@ -212,6 +237,57 @@ void Navigation::predictCollisions(PathOption path){
 	
 }
 
+void Navigation::calculateClearance(PathOption &path){
+	// Ensure that a FPL has been calculated for the path already
+	if (path.free_path_length == 0) {ROS_WARN("Calculating clearance before free path legnth. Returning 0!"); return;}
+
+	// If radius is infinity (curvature == 0), make it some large number
+	float turning_radius = (path.curvature == 0 ? 1e5 : 1/path.curvature);
+
+	// Determine if the car is turning left or right (the math is slightly different for each)
+	std::string turning_direction = (path.curvature <= 0 ? "right" : "left");
+
+	// Find the geometry of the turning motion
+	Point turning_center = odom_loc_ + turning_radius * Point( {-sin(odom_angle_), cos(odom_angle_)} );
+	float turning_angle = path.free_path_length * path.curvature;
+
+	Eigen::Matrix2f rotation;
+	rotation << cos(turning_angle), -sin(turning_angle),
+				sin(turning_angle),  cos(turning_angle);
+
+	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
+	Point end_point = rotation * (odom_loc_ - turning_center) + turning_center;
+
+	// // Define the cone the encompasses all the obstacles of interest
+	Point start_point = (turning_direction == "left" ? odom_loc_ : end_point);
+	end_point   	  = (turning_direction == "left" ? end_point : odom_loc_);
+
+	// Iterate through obstacles to find the one with the minimum clearance
+	float min_clearance = vision_range_;
+	Eigen::Vector2f closest_obs;
+	for (const auto &obs : ObstacleList_)
+	{
+		// float obs_angle = atan2(obs.loc[1] - turning_center[1], obs.loc[0] - turning_center[0]);
+
+		if (isBetween(turning_center, start_point, end_point, obs.loc))
+		{
+			float clearance = abs( (obs.loc - turning_center).norm() - abs(turning_radius) );
+			if (clearance < min_clearance) {min_clearance = clearance; closest_obs = obs.loc;}
+		}
+	}
+
+	// Draw start and stop points relative to center
+	visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(start_point), 0x000000, local_viz_msg_);
+	visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0x000000, local_viz_msg_);
+	visualization::DrawCross(Odom2BaseLink(turning_center), 0.15, 0xfc3003, local_viz_msg_);
+
+	// Draw the closest obstacle which gives min clearance
+	visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
+	// ROS_INFO("Closest Obstacle: (%.2f, %.2f)", closest_obs[0], closest_obs[1]);
+
+	path.clearance = min_clearance;
+}
+
 // Limit Velocity to follow both acceleration and velocity limits
 float Navigation::limitVelocity(float vel) {
 	float new_vel = std::min({vel,     robot_vel_[0] + max_accel_ * dt_, max_vel_});
@@ -277,9 +353,6 @@ Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base
 // Main Loop
 void Navigation::Run() {
 	// Added this section for anything that we only want to happen once (like Arduino Setup function)
-	visualization::ClearVisualizationMsg(local_viz_msg_);
-	visualization::ClearVisualizationMsg(global_viz_msg_);
-
 	if  (init_){
 		while (init_ and ros::ok()){
 			ros::spinOnce();
@@ -289,10 +362,20 @@ void Navigation::Run() {
 		start_point_ = odom_loc_;
 	}
 
+	visualization::ClearVisualizationMsg(local_viz_msg_);
+	visualization::ClearVisualizationMsg(global_viz_msg_);
+
 	// Drive forwards 1 meter from start point
 	// moveForwards(start_point_, 10.0);
-	showObstacles();
-	driveCar(0.0, 1.0);
+	// showObstacles();
+	PathOption TestPath;
+	TestPath.curvature = -0.4;
+	TestPath.free_path_length = 5;
+	calculateClearance(TestPath);
+	driveCar(TestPath.curvature, 1.0);
+
+	// Test isBetween
+	// ROS_INFO("%d", isBetween({0,0}, {-1,1}, {-1,-1}, {1,0}));
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
