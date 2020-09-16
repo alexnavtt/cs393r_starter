@@ -432,12 +432,9 @@ Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base
 
 // Main Loop
 void Navigation::Run() {
-<<<<<<< HEAD
-=======
 	visualization::ClearVisualizationMsg(local_viz_msg_);
 	visualization::ClearVisualizationMsg(global_viz_msg_);
 
->>>>>>> be1131a65c93eb6b9751be2f3c5a5a005faf113c
 	// Added this section for anything that we only want to happen once (like Arduino Setup function)
 	if  (init_){
 		while (init_ and ros::ok()){
