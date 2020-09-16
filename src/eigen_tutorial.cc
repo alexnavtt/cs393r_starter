@@ -39,6 +39,8 @@ void DemoBasics() {
   cout << "Multiply matrix times vector." << endl;
   Vector2f v2 = m1 * v1;
   cout << "Resulting vector:\n" << v2 << endl;
+
+  cout << "Test: " << (v1-v2).norm() << endl;
 }
 
 void DemoRotations() {
