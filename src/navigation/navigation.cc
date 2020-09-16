@@ -239,7 +239,8 @@ void Navigation::createPossiblePaths(float num)
 											0,										// clearance
 											0,										// free path length
 											{0,0},									// obstruction location
-											{0,0}});								// closest point location
+											{0,0},									// closest point location
+											{0,0}});								// end point of the movement
 	}
 }
 
@@ -339,11 +340,11 @@ void Navigation::calculateClearance(PathOption &path){
 				sin(turning_angle),  cos(turning_angle);
 
 	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
-	Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
+	path.end_point = rotation * (odom_loc_ - turning_center) + turning_center;
 
 	// // Define the cone the encompasses all the obstacles of interest
-	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
-	end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
+	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : path.end_point);
+	Vector2f end_point 	 = (turning_direction == "left" ? path.end_point : odom_loc_);
 
 	// Iterate through obstacles to find the one with the minimum clearance
 	float min_clearance = vision_range_;
@@ -366,6 +367,40 @@ void Navigation::calculateClearance(PathOption &path){
 	visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
 
 	path.clearance = min_clearance;
+}
+
+void Navigation::setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG)
+{
+	free_path_length_weight_ = w_FPL;
+	clearance_weight_ 		 = w_C;
+	distance_to_goal_weight_ = w_DTG;
+}
+
+PathOption Navigation::getGreedyPath(Vector2f goal_loc)
+{
+	// Clear out possible paths and reinitialize
+	createPossiblePaths(15);
+
+	// Initialize output
+	PathOption BestPath;
+	float min_cost = 1e10;
+
+	// Iterate through paths to find the best one
+	for (auto &path : PossiblePaths_)
+	{
+		// Update FLP, Clearance, Closest Point, Obstruction, End Point
+		predictCollisions(path);
+
+		float distance_to_goal = (path.end_point - goal_loc).norm();
+
+		float cost = - path.free_path_length * free_path_length_weight_		// (-) decrease cost with large FPL
+					 - path.clearance 		 * clearance_weight_			// (-) decrease cost with large clearance
+					 + distance_to_goal 	 * distance_to_goal_weight_; 	// (+) increase cost with large distance to goal
+
+		if (cost < min_cost) {min_cost = cost; BestPath = path;}
+	}
+
+	return BestPath;
 }
 
 // Limit Velocity to follow both acceleration and velocity limits
@@ -453,14 +488,14 @@ void Navigation::Run() {
 	//   assignCost
 	// executeBestPath(path_with_lowest_cost)
 
-	PathOption test_path{1e-5, 0, 0, {0,0}, {0,0}};	//10m radius
+	PathOption test_path{0.1, 0, 0, {0,0}, {0,0}, {0,0}};	//10m radius
 	predictCollisions(test_path);
 	calculateClearance(test_path);
 	std::cout << "free path length: " << test_path.free_path_length << std::endl;
 
-	driveCar(test_path.curvature, 0.0);
+	driveCar(test_path.curvature, 0.5);
 
-	showObstacles();
+	// showObstacles();
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
