@@ -158,11 +158,6 @@ void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
 
 void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
 								const Vector2f& vel, float ang_vel) {
-	// odom_loc_ = loc;
-	// odom_angle_ = angle;
-	// robot_vel_ = vel;
-	// robot_omega_ = ang_vel;
-
 	LC_.recordObservation(loc[0], loc[1], angle);
 	state2D current_state = LC_.predictedState();
 
@@ -192,9 +187,6 @@ void Navigation::trimObstacles(double now)
 			obs = ObstacleList_.erase(obs);
 			continue;
 		}
-
-		// Check to see where in the reference frame obs lies relative to the robot
-		// float obs_angle = atan2(obs->loc[1] - odom_loc_[1], obs->loc[0] - odom_loc_[0]);  // in the range [-pi, pi]
 		
 		// If it is within the field of view (i.e. we have new data) erase the old data
 		if (isBetween(odom_loc_, lower_lim_point, upper_lim_point, obs->loc)){
@@ -378,7 +370,7 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 	// Clear out possible paths and reinitialize
 	createPossiblePaths(15);
 
-	// Initialize output
+	// Initialize output and cost
 	PathOption BestPath;
 	float min_cost = 1e10;
 

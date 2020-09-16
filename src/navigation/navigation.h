@@ -173,7 +173,7 @@ class Navigation {
   float clearance_;
 
   // Remove from memory any old or deprecated obstacles - called by ObservePointCloud
-  void trimObstacles(double now); // Done -Alex
+  void trimObstacles(double now);
 
   // Called by getGreedyPath
   void createPossiblePaths(float num);
