@@ -271,7 +271,6 @@ void Navigation::predictCollisions(PathOption& path){
 		float rp = (c-p_future).norm();
 
 		Vector2f p_current;
-		bool collision_point = true;
 		// Check if point is hitting car on front or inner side
 		if (rp > rmin && rp < rdiff) {
 			// Inner side collision
@@ -329,11 +328,11 @@ void Navigation::calculateClearance(PathOption &path){
 				sin(turning_angle),  cos(turning_angle);
 
 	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
-	path.end_point = rotation * (odom_loc_ - turning_center) + turning_center;
+	Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
 
 	// // Define the cone the encompasses all the obstacles of interest
-	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : path.end_point);
-	Vector2f end_point 	 = (turning_direction == "left" ? path.end_point : odom_loc_);
+	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
+	end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
 
 	// Iterate through obstacles to find the one with the minimum clearance
 	float min_clearance = vision_range_;
@@ -357,6 +356,7 @@ void Navigation::calculateClearance(PathOption &path){
 
 	path.clearance = min_clearance;
 }
+
 
 void Navigation::setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG)
 {
@@ -410,6 +410,15 @@ void Navigation::moveForwards(Vector2f& start, float dist){
 	// Determine whether to accel or decel, then publish command
 	float cmd_vel = (dist_to_go > decel_dist) ? max_vel_ : 0.0;
 	driveCar(0.0, limitVelocity(cmd_vel));
+}
+
+void Navigation::moveCurvy(PathOption best_path){
+	// Connor works here
+	float current_speed = robot_vel_.norm();
+	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
+	
+	float cmd_vel = (best_path.free_path_length > decel_dist) ? max_vel_ : 0.0;
+	driveCar(best_path.curvature, limitVelocity(cmd_vel));
 }
 
 void Navigation::driveCar(float curvature, float velocity){
@@ -477,14 +486,14 @@ void Navigation::Run() {
 	//   assignCost
 	// executeBestPath(path_with_lowest_cost)
 
-	PathOption test_path{0.1, 0, 0, {0,0}, {0,0}, {0,0}};	//10m radius
+	PathOption test_path{1e-5, 0, 0, {0,0}, {0,0}, {0,0}};	//10m radius
 	predictCollisions(test_path);
 	calculateClearance(test_path);
 	std::cout << "free path length: " << test_path.free_path_length << std::endl;
 
-	driveCar(test_path.curvature, 0.5);
+	driveCar(test_path.curvature, 0.0);
 
-	// showObstacles();
+	showObstacles();
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
