@@ -113,6 +113,8 @@ class Navigation {
   // Get the best path towards the goal
   PathOption getGreedyPath(Eigen::Vector2f goal_loc);
 
+  void printVector(Eigen::Vector2f print_vector, std::string vector_name);
+
  private:
 
   /* ----------- Robot State ------------ */
@@ -167,7 +169,7 @@ class Navigation {
 
   // Called by getGreedyPath
   void createPossiblePaths(float num);
-  void predictCollisions(PathOption path);
+  void predictCollisions(PathOption& path);
 
 
   // LocalPlanner planner_;
