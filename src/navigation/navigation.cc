@@ -71,9 +71,12 @@ const float w = 0.25;	//width
 const float l = 0.4;	//length
 const float m = 0.0;	//padding
 const float b = 0.3;	//wheelbase
-const Vector2f pmin(0, w/2+m);
-const Vector2f pdiff((b+l)/2+m, w/2+m);
-const Vector2f pmax((b+l)/2+m, -w/2-m);
+const Vector2f pmin_pos(0, w/2+m);
+const Vector2f pdif_pos((b+l)/2+m, w/2+m);
+const Vector2f pmax_pos((b+l)/2+m, -w/2-m);
+const Vector2f pmin_neg(0, -w/2-m);
+const Vector2f pdif_neg((b+l)/2+m, -w/2-m);
+const Vector2f pmax_neg((b+l)/2+m, w/2+m);
 
 // Robot Limits
 const float max_vel_   =  1.0;
@@ -81,8 +84,7 @@ const float min_vel_   = -1.0;
 const float max_accel_ =  4.0;
 const float min_accel_ = -4.0;
 
-// Variables to deal with this dumb way of doing things
-Eigen::Vector2f start_point_;
+// Global one-time variables
 Eigen::Vector2f goal_vector_;
 
 bool init_ = true;
@@ -243,60 +245,69 @@ void Navigation::printVector(Vector2f print_vector, std::string vector_name)
 }
 
 // Calculate free path length for a given path
-// Could expand this function to also return clearance, dist to goal, etc...
 void Navigation::predictCollisions(PathOption& path){
-	float r = 1/path.curvature; // turning radius
+	float r = 1/path.curvature; // radius of curvature
+
+	// Need to flip certain variables if turning CW
+	int sign = ( (r > 0) ? 1 : -1);
+
 	Vector2f c(0,r); // point of rotation
 	
 	// Get radii to specific points based on curvature
-	float rmin = (c-pmin).norm();
-	float rdiff = (c-pdiff).norm();
-	float rmax = (c-pmax).norm();
+	float rmin = (sign*c-pmin_pos).norm();
+	float rdif = (sign*c-pdif_pos).norm();
+	float rmax = (sign*c-pmax_pos).norm();
 
-	// Minimum free path length so far
-	float fpl_min = 10;	// range of lidar
-	Vector2f p_closest(0,0);
+	// Initialize loop variables
+	float fpl_min = 0.0;
+	Vector2f p_closest;
 
-	bool first_collision = true;
+	bool first_loop = true;
 	// Iterate through points in point cloud
 	for (const auto &obs : ObstacleList_)
 	{
-		// Grab point in the right frame
+		// Get point in the right frame
 		Vector2f p_future = Odom2BaseLink(obs.loc);
-
-		// Color points black as you go (removed for speed)
-		// visualization::DrawCross(p_future, 0.1, 0x000000, local_viz_msg_);
-		// viz_pub_.publish(local_viz_msg_);
-
+		// Test point:
+		// Vector2f p_future(0.65,-0.60);
 		// Distance to point
 		float rp = (c-p_future).norm();
-
-		Vector2f p_current;
-		// Check if point is hitting car on front or inner side
-		if (rp > rmin && rp < rdiff) {
-			// Inner side collision
-			float phi = acos((r-w/2-m)/rp);
-			float x = rp*sin(phi);
-			p_current = {x, w/2+m};
-		}
-		else if (rp > rdiff && rp < rmax){
-			// Front collision
-			float phi = asin(((b+l)/2+m)/rp);
-			float y = r-rp*cos(phi);
-			p_current = {(b+l)/2+m, y};
-		}
-		else continue;
 		
-		// Use law of cosines to compute free path length
-		float side_length = (p_future-p_current).norm();
-		float theta = acos((side_length*side_length-2*rp*rp)/(-2*rp*rp));
-		// Solve for free path length of the current point
-		float fpl_current = theta*r;
+		// Initialize free path length for this point
+		float fpl_current;
+
+		// Check if point is hitting car on front or inner side
+		if (rp > rmin && rp < rmax) {
+			Vector2f p_current;
+			if (rp < rdif) {
+				// Inner side collision
+				float phi = acos((sign*r-w/2-m)/rp);
+				float x = rp*sin(phi);
+				p_current = {x, sign*(w/2+m)};
+			}
+			else if (rp > rdif) {
+				// Front collision
+				float phi = asin(((b+l)/2+m)/rp);
+				float y = r+rp*cos(phi);
+				p_current = {(b+l)/2+m, y};
+			}
+			// Use law of cosines to compute free path length
+			float side_length = (p_future-p_current).norm();
+			float theta = acos((side_length*side_length-2*rp*rp)/(-2*rp*rp));
+			// Solve for free path length of the current point
+			fpl_current = sign*theta*r;
+		}
+		else {
+			// No collision
+			fpl_current = sign*r*M_PI; // 180deg U-turn
+			if (fpl_current > 10) fpl_current = 10; // limit to range of Lidar
+		}
+		
 		// If this is the first collision, record this as the smallest fpl so far
-		if (first_collision){
+		if (first_loop){
 			fpl_min = fpl_current;
 			p_closest = p_future;
-			first_collision = false;
+			first_loop = false;
 		}
 		// Only keep this value if it is the smallest fpl so far
 		else if (fpl_current < fpl_min){
@@ -304,9 +315,7 @@ void Navigation::predictCollisions(PathOption& path){
 			p_closest = p_future;
 		}
 	}
-	// Depict closest point with big green X
-	// visualization::DrawCross(p_closest, 0.5, 0x00ff00, local_viz_msg_);
-	// visualization::DrawArc(c, r, -M_PI/2, -M_PI/2+fpl_min/r, 0x00ff00, local_viz_msg_);
+	// Save results to path struct
 	path.closest_point = p_closest;
 	path.free_path_length = fpl_min;
 }
@@ -405,6 +414,7 @@ void Navigation::moveAlongPath(PathOption path){
 	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
 
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
+	std::cout << cmd_vel << std::endl;
 	plotPathDetails(path);
 	driveCar(path.curvature, limitVelocity(cmd_vel));
 }
@@ -476,14 +486,23 @@ void Navigation::Run() {
 			ros::Rate(10).sleep();
 		}
 
-		start_point_ = odom_loc_;
+		// Set cost function weights (FPL, clearance, distance to goal)
+		setLocalPlannerWeights(1.0, 0.0, 0.0);
 		goal_vector_ = {10.0, 0.0};
 	}
 
 	// showObstacles();
 
 	PathOption BestPath = getGreedyPath(goal_vector_);
-	moveAlongPath(BestPath);
+	moveAlongPath(BestPath);	// also plots path
+	std::cout << "free path length: " << BestPath.free_path_length << std::endl
+			  << "current velocity: " << robot_vel_.norm() << std::endl
+			  << " - - - - - - - - "  << std::endl;
+
+	// PathOption test_path{-1/0.75, 0, 0, {0,0}, {0,0}, {0,0}};
+	// predictCollisions(test_path);
+	// std::cout << "free path length: " << test_path.free_path_length << std::endl;
+	// plotPathDetails(test_path);
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
