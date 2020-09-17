@@ -41,6 +41,8 @@ void DemoBasics() {
 
   cout << "Print the vector to stdout:\n" << v1 << endl;
 
+  cout << "test: " << std::abs(-1) << endl;
+
   cout << "Initialize a 2x2 matrix m1." << endl;
   Matrix2f m1;
   m1  << 0, 2,

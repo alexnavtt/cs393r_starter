@@ -224,12 +224,15 @@ void Navigation::createPossiblePaths(float num)
 	float curve_increment = 2*curvature_max_/num;
 	for (int i = 0; i < num; i++)
 	{
-		PossiblePaths_.push_back(PathOption {-curvature_max_ + i*curve_increment, 	// curvature
-											0,										// clearance
-											0,										// free path length
-											{0,0},									// obstruction location
-											{0,0},									// closest point location
-											{0,0}});								// end point of the movement
+		float curvature = -curvature_max_ + i*curve_increment;
+		// Enforce max radius of 1km
+		if (std::abs(curvature) < 0.001) curvature = 0.001;
+		PossiblePaths_.push_back(PathOption {curvature, // curvature
+											 0,			// clearance
+											 0,			// free path length
+											 {0,0},		// obstruction location
+											 {0,0},		// closest point location
+											 {0,0}});	// end point of the movement
 	}
 }
 
