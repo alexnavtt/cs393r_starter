@@ -387,6 +387,7 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 		predictCollisions(path);
 		calculateClearance(path);
 
+		// NOTE: end_point has been transformed to the base_link frame
 		float distance_to_goal = (path.end_point - goal_loc).norm();
 
 		float cost = - path.free_path_length * free_path_length_weight_		// (-) decrease cost with large FPL
@@ -429,6 +430,9 @@ void Navigation::plotPathDetails(PathOption path){
 	// Place green cross at obstruction point if it exists
 	if (path.obstruction.norm() > 0)
 		visualization::DrawCross(path.obstruction, 0.5, 0x00ff00, local_viz_msg_);
+	
+	// Place red cross at goal position
+	visualization::DrawCross(goal_vector_, 0.5, 0xff0000, local_viz_msg_);
 }
 
 void Navigation::printPathDetails(PathOption path){
@@ -439,6 +443,7 @@ void Navigation::printPathDetails(PathOption path){
 	printVector(path.obstruction, "obstruction: ");
 	printVector(path.closest_point, "closest point: ");
 	printVector(path.end_point, "end point: ");
+	printVector(goal_vector_, "goal position");
 	std::cout << " - - - - - - - -  " << std::endl;
 }
 
@@ -497,8 +502,10 @@ void Navigation::Run() {
 		}
 
 		// Set cost function weights (FPL, clearance, distance to goal)
-		setLocalPlannerWeights(0.5, 0.5, 0.0);
-		// goal_vector_ = {10.0, 0.0};
+		setLocalPlannerWeights(1.0, 1.0, 1.0);
+		// Place goal 10m ahead of car
+		goal_vector_ = {10.0, 0};
+		// goal_vector_ = odom_loc_ + {10*sin(odom_angle_), 10*cos(odom_angle_)};
 	}
 
 	// showObstacles();
