@@ -69,7 +69,7 @@ const float curvature_max_ = 1/1.0;
 // Fake Robot Parameters
 const float w = 0.25;	//width
 const float l = 0.4;	//length
-const float m = 0.0;	//padding
+const float m = 0.1;	//padding
 const float b = 0.3;	//wheelbase
 const Vector2f pmin_pos(0, w/2+m);
 const Vector2f pdif_pos((b+l)/2+m, w/2+m);
@@ -88,6 +88,7 @@ const float min_accel_ = -4.0;
 Eigen::Vector2f goal_vector_;
 
 bool init_ = true;
+bool init_vel_ = true;
 } //namespace
 
 namespace navigation {
@@ -228,7 +229,7 @@ void Navigation::createPossiblePaths(float num)
 	for (int i = 0; i < num; i++)
 	{
 		float curvature = -curvature_max_ + i*curve_increment;
-		// Enforce max radius of 1km
+		// Enforce max radius of 1km (any bigger and the angles get so small the math is bad)
 		if (std::abs(curvature) < 0.001) curvature = 0.001;
 		PossiblePaths_.push_back(PathOption {curvature, // curvature
 											 0,			// clearance
@@ -299,11 +300,12 @@ void Navigation::predictCollisions(PathOption& path){
 		}
 		else {
 			// No collision
+			// NOTE: This limiting method favors straight paths due to how the GLP is weighted
 			fpl_current = sign*r*M_PI; // 180deg U-turn
 			if (fpl_current > 10) fpl_current = 10; // limit to range of Lidar
 		}
 		
-		// If this is the first collision, record this as the smallest fpl so far
+		// If this is the first loop, record this as the smallest fpl so far
 		if (first_loop){
 			fpl_min = fpl_current;
 			p_closest = p_future;
@@ -368,7 +370,6 @@ void Navigation::calculateClearance(PathOption &path){
 	path.clearance = min_clearance;
 }
 
-
 void Navigation::setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG)
 {
 	free_path_length_weight_ = w_FPL;
@@ -405,31 +406,33 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 
 // Limit Velocity to follow both acceleration and velocity limits
 float Navigation::limitVelocity(float vel) {
-	float new_vel = std::min({vel,     robot_vel_[0] + max_accel_ * dt_, max_vel_});
-	return          std::max({new_vel, robot_vel_[0] + min_accel_ * dt_, min_vel_});
+	// For some very strange reason, the y-term of velocity is initialized at infinity...
+	float current_speed = robot_vel_.norm();
+	if (init_vel_) { current_speed = 0; init_vel_ = false; }
+	// Changed to account for 2d speed
+	float new_vel = std::min({vel, 		current_speed + max_accel_ * dt_, max_vel_});
+	return			std::max({new_vel, 	current_speed + min_accel_ * dt_, min_vel_});
 }
 
 void Navigation::moveAlongPath(PathOption path){
 	float current_speed = robot_vel_.norm();
 	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
-
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
-	std::cout << cmd_vel << std::endl;
 	plotPathDetails(path);
 	driveCar(path.curvature, limitVelocity(cmd_vel));
 }
 
 void Navigation::plotPathDetails(PathOption path){
 	// Outline car (top, bottom, front)
-	visualization::DrawLine({-(l-b)/2-m, w/2+m},  {(b+l)/2+m, w/2+m},  0x000000, local_viz_msg_);
-	visualization::DrawLine({-(l-b)/2-m, -w/2-m}, {(b+l)/2+m, -w/2-m}, 0x000000, local_viz_msg_);
-	visualization::DrawLine({(b+l)/2+m, w/2+m},   {(b+l)/2+m, -w/2-m}, 0x000000, local_viz_msg_);
+	visualization::DrawLine({-(l-b)/2, w/2},  {(b+l)/2, w/2},  0x000000, local_viz_msg_);
+	visualization::DrawLine({-(l-b)/2, -w/2}, {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);
+	visualization::DrawLine({(b+l)/2, w/2},   {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);
 
 	// Draw path option
 	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
 
-	// Place green cross at collision point
-	visualization::DrawCross(path.closest_point, 0.5, 0x00ff00, local_viz_msg_);
+	// Place green cross at point with minimum clearance
+	// visualization::DrawCross(path.closest_point, 0.5, 0x00ff00, local_viz_msg_);
 }
 
 void Navigation::driveCar(float curvature, float velocity){
@@ -492,6 +495,8 @@ void Navigation::Run() {
 	}
 
 	// showObstacles();
+
+	printVector(robot_vel_, "wtf");
 
 	PathOption BestPath = getGreedyPath(goal_vector_);
 	moveAlongPath(BestPath);	// also plots path
