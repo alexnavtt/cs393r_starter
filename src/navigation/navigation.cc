@@ -493,22 +493,22 @@ void Navigation::Run() {
 		}
 
 		// Set cost function weights (FPL, clearance, distance to goal)
-		// setLocalPlannerWeights(1.0, 0.0, 0.0);
-		// goal_vector_ = {10.0, 0.0};
+		setLocalPlannerWeights(1.0, 0.0, 0.0);
+		goal_vector_ = {10.0, 0.0};
 	}
 
 	// showObstacles();
 
-	// PathOption BestPath = getGreedyPath(goal_vector_);
-	// moveAlongPath(BestPath);	// also plots path
-	// std::cout << "free path length: " << BestPath.free_path_length << std::endl
-	// 		  << "current velocity: " << robot_vel_.norm() << std::endl
-	// 		  << " - - - - - - - - "  << std::endl;
+	PathOption BestPath = getGreedyPath(goal_vector_);
+	moveAlongPath(BestPath);	// also plots path
+	std::cout << "free path length: " << BestPath.free_path_length << std::endl
+			  << "current velocity: " << robot_vel_.norm() << std::endl
+			  << " - - - - - - - - "  << std::endl;
 
-	PathOption test_path{0.02, 0, 0, {0,0}, {0,0}, {0,0}};
-	predictCollisions(test_path);
-	std::cout << "free path length: " << test_path.free_path_length << std::endl;
-	plotPathDetails(test_path);
+	// PathOption test_path{0.02, 0, 0, {0,0}, {0,0}, {0,0}};
+	// predictCollisions(test_path);
+	// std::cout << "free path length: " << test_path.free_path_length << std::endl;
+	// plotPathDetails(test_path);
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
