@@ -291,7 +291,7 @@ void Navigation::predictCollisions(PathOption& path){
 			else if (rp > rdif) {
 				// Front collision
 				float phi = asin(((b+l)/2+m)/rp);
-				float y = r+rp*cos(phi);
+				float y = r-sign*rp*cos(phi);
 				p_current = {(b+l)/2+m, y};
 			}
 			// Use law of cosines to compute free path length
@@ -304,7 +304,7 @@ void Navigation::predictCollisions(PathOption& path){
 			// No collision
 			// NOTE: This limiting method favors straight paths due to how the GLP is weighted
 			fpl_current = sign*r*M_PI; // 180deg U-turn
-			if (fpl_current > 10) fpl_current = 10; // limit to range of Lidar
+			if (fpl_current > vision_range_) fpl_current = vision_range_; // limit to range of Lidar
 		}
 		
 		// If this is the first loop, record this as the smallest fpl so far
@@ -493,22 +493,22 @@ void Navigation::Run() {
 		}
 
 		// Set cost function weights (FPL, clearance, distance to goal)
-		setLocalPlannerWeights(1.0, 0.0, 0.0);
-		goal_vector_ = {10.0, 0.0};
+		// setLocalPlannerWeights(1.0, 0.0, 0.0);
+		// goal_vector_ = {10.0, 0.0};
 	}
 
 	// showObstacles();
 
-	PathOption BestPath = getGreedyPath(goal_vector_);
-	moveAlongPath(BestPath);	// also plots path
-	std::cout << "free path length: " << BestPath.free_path_length << std::endl
-			  << "current velocity: " << robot_vel_.norm() << std::endl
-			  << " - - - - - - - - "  << std::endl;
+	// PathOption BestPath = getGreedyPath(goal_vector_);
+	// moveAlongPath(BestPath);	// also plots path
+	// std::cout << "free path length: " << BestPath.free_path_length << std::endl
+	// 		  << "current velocity: " << robot_vel_.norm() << std::endl
+	// 		  << " - - - - - - - - "  << std::endl;
 
-	// PathOption test_path{-1/0.75, 0, 0, {0,0}, {0,0}, {0,0}};
-	// predictCollisions(test_path);
-	// std::cout << "free path length: " << test_path.free_path_length << std::endl;
-	// plotPathDetails(test_path);
+	PathOption test_path{0.02, 0, 0, {0,0}, {0,0}, {0,0}};
+	predictCollisions(test_path);
+	std::cout << "free path length: " << test_path.free_path_length << std::endl;
+	plotPathDetails(test_path);
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
