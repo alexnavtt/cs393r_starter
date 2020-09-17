@@ -261,7 +261,7 @@ void Navigation::predictCollisions(PathOption& path){
 
 	// Initialize loop variables
 	float fpl_min = 0.0;
-	Vector2f p_closest;
+	Vector2f p_obstruction(0.0, 0.0);
 
 	bool first_loop = true;
 	// Iterate through points in point cloud
@@ -274,11 +274,13 @@ void Navigation::predictCollisions(PathOption& path){
 		// Distance to point
 		float rp = (c-p_future).norm();
 		
-		// Initialize free path length for this point
+		// Initialize loop variables
 		float fpl_current;
+		bool obstruction = false;
 
 		// Check if point is hitting car on front or inner side
 		if (rp > rmin && rp < rmax) {
+			obstruction = true;
 			Vector2f p_current;
 			if (rp < rdif) {
 				// Inner side collision
@@ -308,17 +310,17 @@ void Navigation::predictCollisions(PathOption& path){
 		// If this is the first loop, record this as the smallest fpl so far
 		if (first_loop){
 			fpl_min = fpl_current;
-			p_closest = p_future;
+			if (obstruction) p_obstruction = p_future;
 			first_loop = false;
 		}
 		// Only keep this value if it is the smallest fpl so far
 		else if (fpl_current < fpl_min){
 			fpl_min = fpl_current;
-			p_closest = p_future;
+			if (obstruction) p_obstruction = p_future;
 		}
 	}
 	// Save results to path struct
-	path.closest_point = p_closest;
+	path.obstruction = p_obstruction;
 	path.free_path_length = fpl_min;
 }
 
@@ -431,8 +433,9 @@ void Navigation::plotPathDetails(PathOption path){
 	// Draw path option
 	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
 
-	// Place green cross at point with minimum clearance
-	// visualization::DrawCross(path.closest_point, 0.5, 0x00ff00, local_viz_msg_);
+	// Place green cross at obstruction point if it exists
+	if (path.obstruction.norm() > 0)
+		visualization::DrawCross(path.obstruction, 0.5, 0x00ff00, local_viz_msg_);
 }
 
 void Navigation::driveCar(float curvature, float velocity){
@@ -495,8 +498,6 @@ void Navigation::Run() {
 	}
 
 	// showObstacles();
-
-	printVector(robot_vel_, "wtf");
 
 	PathOption BestPath = getGreedyPath(goal_vector_);
 	moveAlongPath(BestPath);	// also plots path
