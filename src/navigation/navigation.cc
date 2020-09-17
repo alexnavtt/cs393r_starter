@@ -44,7 +44,7 @@ using std::vector;
 using namespace math_util;
 using namespace ros_helpers;
 
-// Note: namespace allows for "global" variables that exist only in this file   -Alex
+// Note: namespace allows for "global" variables that exist only in this file
 namespace {
 ros::Publisher drive_pub_;
 ros::Publisher viz_pub_;
@@ -71,12 +71,9 @@ const float w = 0.25;	//width
 const float l = 0.4;	//length
 const float m = 0.1;	//padding
 const float b = 0.3;	//wheelbase
-const Vector2f pmin_pos(0, w/2+m);
-const Vector2f pdif_pos((b+l)/2+m, w/2+m);
-const Vector2f pmax_pos((b+l)/2+m, -w/2-m);
-const Vector2f pmin_neg(0, -w/2-m);
-const Vector2f pdif_neg((b+l)/2+m, -w/2-m);
-const Vector2f pmax_neg((b+l)/2+m, w/2+m);
+const Vector2f pmin(0, w/2+m);
+const Vector2f pdif((b+l)/2+m, w/2+m);
+const Vector2f pmax((b+l)/2+m, -w/2-m);
 
 // Robot Limits
 const float max_vel_   =  1.0;
@@ -255,9 +252,9 @@ void Navigation::predictCollisions(PathOption& path){
 	Vector2f c(0,r); // point of rotation
 	
 	// Get radii to specific points based on curvature
-	float rmin = (sign*c-pmin_pos).norm();
-	float rdif = (sign*c-pdif_pos).norm();
-	float rmax = (sign*c-pmax_pos).norm();
+	float rmin = (sign*c-pmin).norm();
+	float rdif = (sign*c-pdif).norm();
+	float rmax = (sign*c-pmax).norm();
 
 	// Initialize loop variables
 	float fpl_min = 0.0;
@@ -269,8 +266,6 @@ void Navigation::predictCollisions(PathOption& path){
 	{
 		// Get point in the right frame
 		Vector2f p_future = Odom2BaseLink(obs.loc);
-		// Test point:
-		// Vector2f p_future(0.65,-0.60);
 		// Distance to point
 		float rp = (c-p_future).norm();
 		
@@ -278,7 +273,7 @@ void Navigation::predictCollisions(PathOption& path){
 		float fpl_current;
 		bool obstruction = false;
 
-		// Check if point is hitting car on front or inner side
+		// Check if point will obstruct car
 		if (rp > rmin && rp < rmax) {
 			obstruction = true;
 			Vector2f p_current;
@@ -307,16 +302,11 @@ void Navigation::predictCollisions(PathOption& path){
 			if (fpl_current > vision_range_) fpl_current = vision_range_; // limit to range of Lidar
 		}
 		
-		// If this is the first loop, record this as the smallest fpl so far
-		if (first_loop){
+		// If this is the first loop or this is the smallest fpl so far, record this value
+		if (first_loop || fpl_current < fpl_min){
 			fpl_min = fpl_current;
 			if (obstruction) p_obstruction = p_future;
 			first_loop = false;
-		}
-		// Only keep this value if it is the smallest fpl so far
-		else if (fpl_current < fpl_min){
-			fpl_min = fpl_current;
-			if (obstruction) p_obstruction = p_future;
 		}
 	}
 	// Save results to path struct
@@ -425,10 +415,11 @@ void Navigation::moveAlongPath(PathOption path){
 }
 
 void Navigation::plotPathDetails(PathOption path){
-	// Outline car (top, bottom, front)
-	visualization::DrawLine({-(l-b)/2, w/2},  {(b+l)/2, w/2},  0x000000, local_viz_msg_);
-	visualization::DrawLine({-(l-b)/2, -w/2}, {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);
-	visualization::DrawLine({(b+l)/2, w/2},   {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);
+	// Outline car
+	visualization::DrawLine({-(l-b)/2, w/2},  {(b+l)/2, w/2},  0x000000, local_viz_msg_);	//top
+	visualization::DrawLine({-(l-b)/2, -w/2}, {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);	//bottom
+	visualization::DrawLine({(b+l)/2, w/2},   {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);	//front
+	visualization::DrawLine({-(l-b)/2, -w/2}, {-(l-b)/2, w/2},  0x000000, local_viz_msg_);	//back
 
 	// Draw path option
 	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
@@ -503,7 +494,7 @@ void Navigation::Run() {
 	moveAlongPath(BestPath);	// also plots path
 	std::cout << "free path length: " << BestPath.free_path_length << std::endl
 			  << "current velocity: " << robot_vel_.norm() << std::endl
-			  << " - - - - - - - - "  << std::endl;
+			  << " - - - - - - - -  " << std::endl;
 
 	// PathOption test_path{0.02, 0, 0, {0,0}, {0,0}, {0,0}};
 	// predictCollisions(test_path);
