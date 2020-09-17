@@ -239,7 +239,7 @@ void Navigation::createPossiblePaths(float num)
 
 void Navigation::printVector(Vector2f print_vector, std::string vector_name)
 {
-	std::cout << vector_name << " x: " << print_vector.x() << ", y: " << print_vector.y() << std::endl;
+	std::cout << vector_name << " x= " << print_vector.x() << ", y= " << print_vector.y() << std::endl;
 }
 
 // Calculate free path length for a given path
@@ -299,7 +299,7 @@ void Navigation::predictCollisions(PathOption& path){
 			// No collision
 			// NOTE: This limiting method favors straight paths due to how the GLP is weighted
 			fpl_current = sign*r*M_PI; // 180deg U-turn
-			if (fpl_current > vision_range_) fpl_current = vision_range_; // limit to range of Lidar
+			// if (fpl_current > vision_range_) fpl_current = vision_range_; // limit to range of Lidar
 		}
 		
 		// If this is the first loop or this is the smallest fpl so far, record this value
@@ -319,10 +319,11 @@ void Navigation::calculateClearance(PathOption &path){
 	if (path.free_path_length == 0) {ROS_WARN("Calculating clearance before free path length. Returning 0!"); return;}
 
 	// If radius is infinity (curvature == 0), make it some large number
-	float turning_radius = (path.curvature == 0 ? 1e5 : 1/path.curvature);
+	// float turning_radius = (path.curvature == 0 ? 1e5 : 1/path.curvature);
+	float turning_radius = 1/path.curvature;
 
 	// Determine if the car is turning left or right (the math is slightly different for each)
-	std::string turning_direction = (path.curvature <= 0 ? "right" : "left");
+	std::string turning_direction = (path.curvature < 0 ? "right" : "left");
 
 	// Find the geometry of the turning motion
 	Vector2f turning_center = BaseLink2Odom({0, turning_radius});
@@ -334,6 +335,7 @@ void Navigation::calculateClearance(PathOption &path){
 
 	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
 	Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
+	path.end_point = Odom2BaseLink(end_point);
 
 	// // Define the cone the encompasses all the obstacles of interest
 	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
@@ -358,7 +360,7 @@ void Navigation::calculateClearance(PathOption &path){
 
 	// Draw the closest obstacle which gives min clearance
 	// visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
-
+	path.closest_point = Odom2BaseLink(closest_obs);
 	path.clearance = min_clearance;
 }
 
@@ -372,7 +374,7 @@ void Navigation::setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG)
 PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 {
 	// Clear out possible paths and reinitialize
-	createPossiblePaths(15);
+	createPossiblePaths(20);
 
 	// Initialize output and cost
 	PathOption BestPath;
@@ -383,6 +385,7 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 	{
 		// Update FLP, Clearance, Closest Point, Obstruction, End Point
 		predictCollisions(path);
+		calculateClearance(path);
 
 		float distance_to_goal = (path.end_point - goal_loc).norm();
 
@@ -410,7 +413,6 @@ void Navigation::moveAlongPath(PathOption path){
 	float current_speed = robot_vel_.norm();
 	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
-	plotPathDetails(path);
 	driveCar(path.curvature, limitVelocity(cmd_vel));
 }
 
@@ -427,6 +429,17 @@ void Navigation::plotPathDetails(PathOption path){
 	// Place green cross at obstruction point if it exists
 	if (path.obstruction.norm() > 0)
 		visualization::DrawCross(path.obstruction, 0.5, 0x00ff00, local_viz_msg_);
+}
+
+void Navigation::printPathDetails(PathOption path){
+	std::cout << "current velocity: " << robot_vel_.norm() << std::endl
+			  << "curvature: "        << path.curvature << std::endl
+			  << "clearance: "        << path.clearance << std::endl
+			  << "free path length: " << path.free_path_length << std::endl;
+	printVector(path.obstruction, "obstruction: ");
+	printVector(path.closest_point, "closest point: ");
+	printVector(path.end_point, "end point: ");
+	std::cout << " - - - - - - - -  " << std::endl;
 }
 
 void Navigation::driveCar(float curvature, float velocity){
@@ -484,19 +497,18 @@ void Navigation::Run() {
 		}
 
 		// Set cost function weights (FPL, clearance, distance to goal)
-		setLocalPlannerWeights(1.0, 0.0, 0.0);
-		goal_vector_ = {10.0, 0.0};
+		setLocalPlannerWeights(0.5, 0.5, 0.0);
+		// goal_vector_ = {10.0, 0.0};
 	}
 
 	// showObstacles();
 
 	PathOption BestPath = getGreedyPath(goal_vector_);
-	moveAlongPath(BestPath);	// also plots path
-	std::cout << "free path length: " << BestPath.free_path_length << std::endl
-			  << "current velocity: " << robot_vel_.norm() << std::endl
-			  << " - - - - - - - -  " << std::endl;
+	moveAlongPath(BestPath);
+	plotPathDetails(BestPath);
+	printPathDetails(BestPath);
 
-	// PathOption test_path{0.02, 0, 0, {0,0}, {0,0}, {0,0}};
+	// PathOption test_path{0.001, 0, 0, {0,0}, {0,0}, {0,0}};
 	// predictCollisions(test_path);
 	// std::cout << "free path length: " << test_path.free_path_length << std::endl;
 	// plotPathDetails(test_path);

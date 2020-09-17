@@ -84,6 +84,7 @@ class Navigation {
   void moveAlongPath(PathOption path);
 
   void plotPathDetails(PathOption path);
+  void printPathDetails(PathOption path);
 
   // Publish a drive command
   void driveCar(float curvature, float velocity);
