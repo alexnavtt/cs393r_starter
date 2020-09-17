@@ -302,14 +302,14 @@ void Navigation::predictCollisions(PathOption& path){
 	}
 	// Depict closest point with big green X
 	visualization::DrawCross(p_closest, 0.5, 0x00ff00, local_viz_msg_);
-	// visualization::DrawArc(c, r, odom_angle_, odom_angle_ + 1, 0x00ff00, local_viz_msg_);
+	visualization::DrawArc(c, r, -M_PI/2, -M_PI/2+fpl_min/r, 0x00ff00, local_viz_msg_);
 	path.closest_point = p_closest;
 	path.free_path_length = fpl_min;
 }
 
 void Navigation::calculateClearance(PathOption &path){
 	// Ensure that a FPL has been calculated for the path already
-	if (path.free_path_length == 0) {ROS_WARN("Calculating clearance before free path legnth. Returning 0!"); return;}
+	if (path.free_path_length == 0) {ROS_WARN("Calculating clearance before free path length. Returning 0!"); return;}
 
 	// If radius is infinity (curvature == 0), make it some large number
 	float turning_radius = (path.curvature == 0 ? 1e5 : 1/path.curvature);
@@ -484,7 +484,7 @@ void Navigation::Run() {
 	//   assignCost
 	// executeBestPath(path_with_lowest_cost)
 
-	PathOption test_path{1e-5, 0, 0, {0,0}, {0,0}, {0,0}};
+	PathOption test_path{0.5, 0, 0, {0,0}, {0,0}, {0,0}};
 	predictCollisions(test_path);
 	calculateClearance(test_path);
 	std::cout << "free path length: " << test_path.free_path_length << std::endl;
