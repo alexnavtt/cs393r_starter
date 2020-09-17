@@ -314,7 +314,7 @@ void Navigation::predictCollisions(PathOption& path){
 			// No collision
 			// NOTE: This limiting method favors straight paths due to how the GLP is weighted
 			fpl_current = sign*r*M_PI; // 180deg U-turn
-			// if (fpl_current > vision_range_) fpl_current = vision_range_; // limit to range of Lidar
+			if (fpl_current > vision_range_) fpl_current = vision_range_; // limit to range of Lidar
 		}
 		
 		// If this is the first loop or this is the smallest fpl so far, record this value
@@ -357,14 +357,19 @@ void Navigation::calculateClearance(PathOption &path){
 	end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
 
 	// Iterate through obstacles to find the one with the minimum clearance
-	float min_clearance = vision_range_;
+	float min_clearance = 0.0;
+	bool first_loop = true;
 	Eigen::Vector2f closest_obs;
 	for (const auto &obs : ObstacleList_)
 	{
 		if (isBetween(turning_center, start_point, end_point, obs.loc))
 		{
 			float clearance = abs( (obs.loc - turning_center).norm() - abs(turning_radius) );
-			if (clearance < min_clearance) {min_clearance = clearance; closest_obs = obs.loc;}
+			if (clearance < min_clearance || first_loop) {
+				min_clearance = clearance;
+				if (not first_loop) closest_obs = obs.loc;
+				first_loop = false;
+			}
 		}
 	}
 
@@ -428,7 +433,7 @@ float Navigation::limitVelocity(float vel) {
 
 void Navigation::moveAlongPath(PathOption path){
 	float current_speed = robot_vel_.norm();
-	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
+	float decel_dist = 0.1+-0.5*current_speed*current_speed/min_accel_;
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
 	driveCar(path.curvature, limitVelocity(cmd_vel));
 }
@@ -438,7 +443,7 @@ void Navigation::plotPathDetails(PathOption path){
 	visualization::DrawLine({-(l-b)/2, w/2},  {(b+l)/2, w/2},  0x000000, local_viz_msg_);	//top
 	visualization::DrawLine({-(l-b)/2, -w/2}, {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);	//bottom
 	visualization::DrawLine({(b+l)/2, w/2},   {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);	//front
-	visualization::DrawLine({-(l-b)/2, -w/2}, {-(l-b)/2, w/2},  0x000000, local_viz_msg_);	//back
+	visualization::DrawLine({-(l-b)/2, -w/2}, {-(l-b)/2, w/2}, 0x000000, local_viz_msg_);	//back
 
 	// Place green cross at obstruction point if it exists
 	if (path.obstruction.norm() > 0)
@@ -453,7 +458,6 @@ void Navigation::plotPathDetails(PathOption path){
 
 	// Draw path option
 	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
-
 	
 	// Place red cross at goal position
 	visualization::DrawCross(goal_vector_, 0.5, 0xff0000, local_viz_msg_);
@@ -526,7 +530,7 @@ void Navigation::Run() {
 		}
 
 		// Set cost function weights (FPL, clearance, distance to goal)
-		setLocalPlannerWeights(1.0, 0.5, 3.0);
+		setLocalPlannerWeights(3.0, 0.5, 0.0);
 		// Place goal 10m ahead of car
 		goal_vector_ = {10.0, 0};
 		// goal_vector_ = {-22, 12};
