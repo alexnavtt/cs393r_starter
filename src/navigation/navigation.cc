@@ -65,6 +65,7 @@ const float actuation_delay_ = 0.0;
 const float vision_angle_ = 3*M_PI/2;  
 const float vision_range_ = 10; // based on sim, grid squares are 2m
 const float curvature_max_ = 1/1.0;
+const float max_clearance_ = 2.0;
 
 // Fake Robot Parameters
 const float w = 0.25;	//width
@@ -239,7 +240,21 @@ void Navigation::createPossiblePaths(float num)
 
 void Navigation::printVector(Vector2f print_vector, std::string vector_name)
 {
-	std::cout << vector_name << " x= " << print_vector.x() << ", y= " << print_vector.y() << std::endl;
+	std::cout << vector_name << "\t x= " << print_vector.x() << ", y= " << print_vector.y() << std::endl;
+}
+
+void Navigation::trimPathLength(PathOption &path, Vector2f goal)
+{
+	// NOTE: Defined in the Base Link frame
+	Vector2f P_center = {0, 1/path.curvature};
+	Vector2f V_center2goal = (goal - P_center) / (goal - P_center).norm();
+	Vector2f V_center2home = -P_center/P_center.norm();
+
+	float angle = acos(V_center2home.dot(V_center2goal));
+	if (angle < 0) angle = M_PI + angle; 		// negative angle means it is obtuse
+	if (goal[0] < 0) angle = 2*M_PI - angle; 	// negative x means angle > 180°
+
+	path.free_path_length = std::min(path.free_path_length, abs(angle/path.curvature));
 }
 
 // Calculate free path length for a given path
@@ -385,14 +400,15 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 	{
 		// Update FLP, Clearance, Closest Point, Obstruction, End Point
 		predictCollisions(path);
+		trimPathLength(path, goal_loc);
 		calculateClearance(path);
 
 		// NOTE: end_point has been transformed to the base_link frame
 		float distance_to_goal = (path.end_point - goal_loc).norm();
 
-		float cost = - path.free_path_length * free_path_length_weight_		// (-) decrease cost with large FPL
-					 - path.clearance 		 * clearance_weight_			// (-) decrease cost with large clearance
-					 + distance_to_goal 	 * distance_to_goal_weight_; 	// (+) increase cost with large distance to goal
+		float cost = - ( path.free_path_length / goal_loc.norm() ) * free_path_length_weight_	// (-) decrease cost with large FPL
+					 + 1 / path.clearance		  				   * clearance_weight_			// (+) increase cost with small clearance
+					 + ( distance_to_goal / goal_loc.norm()) 	   * distance_to_goal_weight_; 	// (+) increase cost with large distance to goal
 
 		if (cost < min_cost) {min_cost = cost; BestPath = path;}
 	}
@@ -424,12 +440,20 @@ void Navigation::plotPathDetails(PathOption path){
 	visualization::DrawLine({(b+l)/2, w/2},   {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);	//front
 	visualization::DrawLine({-(l-b)/2, -w/2}, {-(l-b)/2, w/2},  0x000000, local_viz_msg_);	//back
 
-	// Draw path option
-	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
-
 	// Place green cross at obstruction point if it exists
 	if (path.obstruction.norm() > 0)
 		visualization::DrawCross(path.obstruction, 0.5, 0x00ff00, local_viz_msg_);
+
+	// Draw all the possible path options
+	for (auto other_path : PossiblePaths_)
+	{
+		other_path.clearance = 0;
+		visualization::DrawPathOption(other_path.curvature, other_path.free_path_length, other_path.clearance, local_viz_msg_);
+	}
+
+	// Draw path option
+	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
+
 	
 	// Place red cross at goal position
 	visualization::DrawCross(goal_vector_, 0.5, 0xff0000, local_viz_msg_);
@@ -437,8 +461,8 @@ void Navigation::plotPathDetails(PathOption path){
 
 void Navigation::printPathDetails(PathOption path){
 	std::cout << "current velocity: " << robot_vel_.norm() << std::endl
-			  << "curvature: "        << path.curvature << std::endl
-			  << "clearance: "        << path.clearance << std::endl
+			  << "curvature:        " << path.curvature << std::endl
+			  << "clearance:        " << path.clearance << std::endl
 			  << "free path length: " << path.free_path_length << std::endl;
 	printVector(path.obstruction, "obstruction: ");
 	printVector(path.closest_point, "closest point: ");
@@ -502,9 +526,10 @@ void Navigation::Run() {
 		}
 
 		// Set cost function weights (FPL, clearance, distance to goal)
-		setLocalPlannerWeights(1.0, 1.0, 1.0);
+		setLocalPlannerWeights(1.0, 0.5, 3.0);
 		// Place goal 10m ahead of car
 		goal_vector_ = {10.0, 0};
+		// goal_vector_ = {-22, 12};
 		// goal_vector_ = odom_loc_ + {10*sin(odom_angle_), 10*cos(odom_angle_)};
 	}
 

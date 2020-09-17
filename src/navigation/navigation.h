@@ -174,6 +174,7 @@ class Navigation {
   void createPossiblePaths(float num);
   void predictCollisions(PathOption &path);
   void calculateClearance(PathOption &path);
+  void trimPathLength(PathOption &path, Eigen::Vector2f goal);
 
 
   // LocalPlanner planner_;
