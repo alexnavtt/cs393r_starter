@@ -81,7 +81,9 @@ class Navigation {
   float limitVelocity(float vel);
 
   // Move along a given path (pointless comment, I know)
-  void moveAlongPath(PathOption Path);
+  void moveAlongPath(PathOption path);
+
+  void plotPathDetails(PathOption path);
 
   // Publish a drive command
   void driveCar(float curvature, float velocity);

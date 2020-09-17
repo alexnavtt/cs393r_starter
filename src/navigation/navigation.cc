@@ -305,8 +305,8 @@ void Navigation::predictCollisions(PathOption& path){
 		}
 	}
 	// Depict closest point with big green X
-	visualization::DrawCross(p_closest, 0.5, 0x00ff00, local_viz_msg_);
-	visualization::DrawArc(c, r, -M_PI/2, -M_PI/2+fpl_min/r, 0x00ff00, local_viz_msg_);
+	// visualization::DrawCross(p_closest, 0.5, 0x00ff00, local_viz_msg_);
+	// visualization::DrawArc(c, r, -M_PI/2, -M_PI/2+fpl_min/r, 0x00ff00, local_viz_msg_);
 	path.closest_point = p_closest;
 	path.free_path_length = fpl_min;
 }
@@ -349,12 +349,12 @@ void Navigation::calculateClearance(PathOption &path){
 	}
 
 	// Draw start and stop points relative to center
-	visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(start_point), 0x000000, local_viz_msg_);
-	visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0x000000, local_viz_msg_);
-	visualization::DrawCross(Odom2BaseLink(turning_center), 0.15, 0xfc3003, local_viz_msg_);
+	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(start_point), 0x000000, local_viz_msg_);
+	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0x000000, local_viz_msg_);
+	// visualization::DrawCross(Odom2BaseLink(turning_center), 0.15, 0xfc3003, local_viz_msg_);
 
 	// Draw the closest obstacle which gives min clearance
-	visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
+	// visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
 
 	path.clearance = min_clearance;
 }
@@ -405,7 +405,21 @@ void Navigation::moveAlongPath(PathOption path){
 	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
 
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
+	plotPathDetails(path);
 	driveCar(path.curvature, limitVelocity(cmd_vel));
+}
+
+void Navigation::plotPathDetails(PathOption path){
+	// Outline car (top, bottom, front)
+	visualization::DrawLine({-(l-b)/2-m, w/2+m},  {(b+l)/2+m, w/2+m},  0x000000, local_viz_msg_);
+	visualization::DrawLine({-(l-b)/2-m, -w/2-m}, {(b+l)/2+m, -w/2-m}, 0x000000, local_viz_msg_);
+	visualization::DrawLine({(b+l)/2+m, w/2+m},   {(b+l)/2+m, -w/2-m}, 0x000000, local_viz_msg_);
+
+	// Draw path option
+	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
+
+	// Place green cross at collision point
+	visualization::DrawCross(path.closest_point, 0.5, 0x00ff00, local_viz_msg_);
 }
 
 void Navigation::driveCar(float curvature, float velocity){
