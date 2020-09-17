@@ -80,11 +80,8 @@ class Navigation {
   // Scale velocities to stay withing acceleration limits
   float limitVelocity(float vel);
 
-  // Jennings: Added this to move forwards a set distance in x direction
-  void moveForwards(Eigen::Vector2f& start, float dist);
-
-  // Crawford: Move on a curvature
-  void moveCurvy(PathOption best_path);
+  // Move along a given path (pointless comment, I know)
+  void moveAlongPath(PathOption Path);
 
   // Publish a drive command
   void driveCar(float curvature, float velocity);

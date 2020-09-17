@@ -83,6 +83,7 @@ const float min_accel_ = -4.0;
 
 // Variables to deal with this dumb way of doing things
 Eigen::Vector2f start_point_;
+Eigen::Vector2f goal_vector_;
 
 bool init_ = true;
 } //namespace
@@ -399,27 +400,12 @@ float Navigation::limitVelocity(float vel) {
 	return          std::max({new_vel, robot_vel_[0] + min_accel_ * dt_, min_vel_});
 }
 
-void Navigation::moveForwards(Vector2f& start, float dist){
-	// Update how far you've come and how far to go
-	float dist_traveled = (odom_loc_ - start).norm();
-	float dist_to_go = dist - dist_traveled;
-
-	// Update current velocity and solve for necessary stopping distance
+void Navigation::moveAlongPath(PathOption path){
 	float current_speed = robot_vel_.norm();
 	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
 
-	// Determine whether to accel or decel, then publish command
-	float cmd_vel = (dist_to_go > decel_dist) ? max_vel_ : 0.0;
-	driveCar(0.0, limitVelocity(cmd_vel));
-}
-
-void Navigation::moveCurvy(PathOption best_path){
-	// Connor works here
-	float current_speed = robot_vel_.norm();
-	float decel_dist = -0.5*current_speed*current_speed/min_accel_;
-	
-	float cmd_vel = (best_path.free_path_length > decel_dist) ? max_vel_ : 0.0;
-	driveCar(best_path.curvature, limitVelocity(cmd_vel));
+	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
+	driveCar(path.curvature, limitVelocity(cmd_vel));
 }
 
 void Navigation::driveCar(float curvature, float velocity){
@@ -477,24 +463,13 @@ void Navigation::Run() {
 		}
 
 		start_point_ = odom_loc_;
+		goal_vector_ = {10.0, 0.0};
 	}
 
-	// Pseudocode:
-	// createPossiblePaths(5);
-	// for each path:
-	//   predictCollisions   -  gets free path length
-	//   calculateClearance  -  calculates clearance, who woulda thunk
-	//   assignCost
-	// executeBestPath(path_with_lowest_cost)
+	// showObstacles();
 
-	PathOption test_path{0.5, 0, 0, {0,0}, {0,0}, {0,0}};
-	predictCollisions(test_path);
-	calculateClearance(test_path);
-	std::cout << "free path length: " << test_path.free_path_length << std::endl;
-
-	driveCar(test_path.curvature, 0.0);
-
-	showObstacles();
+	PathOption BestPath = getGreedyPath(goal_vector_);
+	moveAlongPath(BestPath);
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
