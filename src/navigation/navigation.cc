@@ -375,7 +375,7 @@ void Navigation::calculateClearance(PathOption &path){
 		if (isBetween(turning_center, start_point, end_point, obs.loc))
 		{
 			float offset = (obs.loc - turning_center).norm();
-			float clearance = (offset < abs_radius) ? abs_radius - w/2.0 - offset : offset - (abs_radius + w/2.0);
+			float clearance = (offset < abs_radius) ? abs_radius - w/2.0 - m - offset : offset - (abs_radius + w/2.0 + m);
 			clearance = std::max(0.0f, clearance);
 
 			if (clearance < min_clearance) {
