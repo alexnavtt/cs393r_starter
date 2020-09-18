@@ -129,7 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		free_path_length_weight_(1),
 		clearance_weight_(1),
 		distance_to_goal_weight_(1),
-		obstacle_memory_(10)
+		obstacle_memory_(0)
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -401,7 +401,7 @@ void Navigation::setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG)
 PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 {
 	// Clear out possible paths and reinitialize
-	createPossiblePaths(30);
+	createPossiblePaths(20);
 
 	// Initialize output and cost
 	PathOption BestPath;
@@ -471,7 +471,7 @@ void Navigation::moveAlongPath(PathOption path){
 	float current_speed = robot_vel_.norm();
 	float decel_dist = 0.1+-0.5*current_speed*current_speed/min_accel_;
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
-	if (navigation_success_) cmd_vel = 0;
+	// if (navigation_success_) cmd_vel = 0;
 	driveCar(path.curvature, limitVelocity(cmd_vel));
 }
 
@@ -570,11 +570,11 @@ void Navigation::Run() {
 		Vector2f goal(10,0);
 		goal_vector_ = BaseLink2Odom(goal);
 		// Set cost function weights (FPL, clearance, distance to goal)
-		setLocalPlannerWeights(4,1,2);
+		setLocalPlannerWeights(4,1,0);
 		time_prev_ = ros::Time::now();
 	}
 
-	// showObstacles();
+	showObstacles();
 
 	PathOption BestPath = getGreedyPath(goal_vector_);
 	moveAlongPath(BestPath);
