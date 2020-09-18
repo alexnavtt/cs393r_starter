@@ -360,7 +360,7 @@ void Navigation::calculateClearance(PathOption &path){
 
 	// NOTE: While that was fun, it is probably better to use the obstruction point
 	//       which will also account for the part of the car ahead of the base_link
-	end_point = path.obstruction;
+	Vector2f end_point = path.obstruction;
 
 	// Define the cone that encompasses all the obstacles of interest
 	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
@@ -379,7 +379,7 @@ void Navigation::calculateClearance(PathOption &path){
 			}
 		}
 	}
-	
+
 	// Draw start and stop points relative to center
 	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(start_point), 0x000000, local_viz_msg_);
 	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0x000000, local_viz_msg_);
