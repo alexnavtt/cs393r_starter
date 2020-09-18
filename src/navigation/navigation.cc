@@ -56,7 +56,8 @@ AckermannCurvatureDriveMsg drive_msg_;
 const float kEpsilon = 1e-5;
 
 // Delta t of the control loop
-const float dt_ = 1/20.0;
+float dt_ = 1/20.0;	// made not constant to adapt for variance/lag
+// NOTE: This may cause issues with the latency compensator
 
 // Robot Parameters
 const float wheelbase_ = 0.324;
@@ -412,10 +413,11 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 
 		// NOTE: end_point has been transformed to the base_link frame
 		float distance_to_goal = (path.end_point - goal_loc).norm();
-
-		float cost = - ( path.free_path_length / goal_loc.norm() ) * free_path_length_weight_	// (-) decrease cost with large FPL
-					 + 1 / path.clearance		  				   * clearance_weight_			// (+) increase cost with small clearance
+		// float cost = - ( path.free_path_length / goal_loc.norm() ) * free_path_length_weight_	// (-) decrease cost with large FPL
+		float cost = - ( path.free_path_length )				   * free_path_length_weight_	// (-) decrease cost with large FPL
+					 + 1 / (path.clearance)	   					   * clearance_weight_			// (+) increase cost with small clearance
 					 + ( distance_to_goal / goal_loc.norm()) 	   * distance_to_goal_weight_; 	// (+) increase cost with large distance to goal
+		if (path.clearance < 0.05) cost = 1e10;
 
 		if (cost < min_cost) {min_cost = cost; BestPath = path;}
 	}
@@ -430,11 +432,10 @@ float Navigation::limitVelocity(float vel) {
 	if (init_vel_) { current_speed = 0; init_vel_ = false; }
 	ros::Time time_now = ros::Time::now();
 	ros::Duration delta_time = time_now - time_prev_;
-	float dt_run = delta_time.toSec();
-	std::cout << dt_run << std::endl;
+	dt_ = delta_time.toSec();
 	// Changed to account for 2d speed
-	float new_vel = std::min({vel, 		current_speed + max_accel_ * dt_run, max_vel_});
-	float cmd_vel = std::max({new_vel, 	current_speed + min_accel_ * dt_run, min_vel_});
+	float new_vel = std::min({vel, 		current_speed + max_accel_ * dt_, max_vel_});
+	float cmd_vel = std::max({new_vel, 	current_speed + min_accel_ * dt_, min_vel_});
 	time_prev_ = time_now;
 	return cmd_vel;
 }
@@ -473,7 +474,8 @@ void Navigation::plotPathDetails(PathOption path){
 }
 
 void Navigation::printPathDetails(PathOption path){
-	std::cout << "current velocity: " << robot_vel_.norm() << std::endl
+	std::cout << "loop time:        " << dt_ << std::endl
+			  << "current velocity: " << robot_vel_.norm() << std::endl
 			  << "curvature:        " << path.curvature << std::endl
 			  << "clearance:        " << path.clearance << std::endl
 			  << "free path length: " << path.free_path_length << std::endl;
