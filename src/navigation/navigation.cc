@@ -338,6 +338,7 @@ void Navigation::calculateClearance(PathOption &path){
 	// If radius is infinity (curvature == 0), make it some large number
 	// float turning_radius = (path.curvature == 0 ? 1e5 : 1/path.curvature);
 	float turning_radius = 1/path.curvature;
+	float abs_radius = abs(turning_radius);
 
 	// Determine if the car is turning left or right (the math is slightly different for each)
 	std::string turning_direction = (path.curvature < 0 ? "right" : "left");
@@ -373,7 +374,10 @@ void Navigation::calculateClearance(PathOption &path){
 	{
 		if (isBetween(turning_center, start_point, end_point, obs.loc))
 		{
-			float clearance = abs( (obs.loc - turning_center).norm() - abs(turning_radius) );
+			float offset = (obs.loc - turning_center).norm();
+			float clearance = (offset < abs_radius) ? abs_radius - w/2.0 - offset : offset - (abs_radius + w/2.0);
+			clearance = std::max(0.0f, clearance);
+
 			if (clearance < min_clearance) {
 				min_clearance = clearance;
 			}
