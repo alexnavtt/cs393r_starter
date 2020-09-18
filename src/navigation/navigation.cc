@@ -127,7 +127,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		free_path_length_weight_(1),
 		clearance_weight_(1),
 		distance_to_goal_weight_(1),
-		obstacle_memory_(10)
+		obstacle_memory_(0)
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
