@@ -69,10 +69,10 @@ const float curvature_max_ = 1/1.0;
 const float max_clearance_ = 2.0;
 
 // Fake Robot Parameters
-const float w = 0.25;	//width
-const float l = 0.4;	//length
+const float w = 0.27;	//width
+const float l = 0.5;	//length
 const float m = 0.1;	//padding
-const float b = 0.3;	//wheelbase
+const float b = 0.324;	//wheelbase
 const Vector2f pmin(0, w/2+m);
 const Vector2f pdif((b+l)/2+m, w/2+m);
 const Vector2f pmax((b+l)/2+m, -w/2-m);
