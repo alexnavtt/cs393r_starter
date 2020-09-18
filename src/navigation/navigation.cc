@@ -353,8 +353,8 @@ void Navigation::calculateClearance(PathOption &path){
 	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
 	Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
 	end_point = Odom2BaseLink(end_point);
-	end_point.x() += ((b+l)/2+m) * cos(odom_angle_);
-	end_point.y() += ((b+l)/2+m) * sin(odom_angle_);
+	end_point.x() += ((b+l)/2+m) * cos(turning_angle);
+	end_point.y() += ((b+l)/2+m) * sin(turning_angle);
 	path.end_point = end_point;
 	end_point = BaseLink2Odom(end_point);
 
