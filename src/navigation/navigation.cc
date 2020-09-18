@@ -351,38 +351,35 @@ void Navigation::calculateClearance(PathOption &path){
 				sin(turning_angle),  cos(turning_angle);
 
 	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
-	Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
-	end_point = Odom2BaseLink(end_point);
-	end_point.x() += ((b+l)/2+m) * cos(turning_angle);
-	end_point.y() += ((b+l)/2+m) * sin(turning_angle);
-	path.end_point = end_point;
-	end_point = BaseLink2Odom(end_point);
+	// Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
+	// end_point = Odom2BaseLink(end_point);
+	// end_point.x() += ((b+l)/2+m) * cos(turning_angle);
+	// end_point.y() += ((b+l)/2+m) * sin(turning_angle);
+	// path.end_point = end_point;
+	// end_point = BaseLink2Odom(end_point);
 
 	// NOTE: While that was fun, it is probably better to use the obstruction point
 	//       which will also account for the part of the car ahead of the base_link
-	// end_point = path.obstruction;
+	end_point = path.obstruction;
 
-	// // Define the cone that encompasses all the obstacles of interest
+	// Define the cone that encompasses all the obstacles of interest
 	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
 	end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
 
 	// Iterate through obstacles to find the one with the minimum clearance
-	float min_clearance = 0.0;
-	bool first_loop = true;
+	float min_clearance = vision_range_;
 	Eigen::Vector2f closest_obs;
 	for (const auto &obs : ObstacleList_)
 	{
 		if (isBetween(turning_center, start_point, end_point, obs.loc))
 		{
 			float clearance = abs( (obs.loc - turning_center).norm() - abs(turning_radius) );
-			if (clearance < min_clearance || first_loop) {
+			if (clearance < min_clearance) {
 				min_clearance = clearance;
-				if (not first_loop) closest_obs = obs.loc;
-				first_loop = false;
 			}
 		}
 	}
-
+	
 	// Draw start and stop points relative to center
 	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(start_point), 0x000000, local_viz_msg_);
 	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0x000000, local_viz_msg_);
