@@ -446,7 +446,7 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 		float cost = - ( path.free_path_length / max_free_path_length ) * free_path_length_weight_		// (-) decrease cost with large FPL
 					 - ( path.clearance / max_clearance )		  		* clearance_weight_				// (+) increase cost with small clearance
 					 + ( path.distance_to_goal / min_distance_to_goal ) * distance_to_goal_weight_; 	// (+) increase cost with large distance to goal
-		if ( path.clearance < (w/2+m) ) cost = cost*5; // significantly increase cost if not enough clearance
+		if ( path.clearance < (w/2+m*2) ) cost = cost*5; // significantly increase cost if not enough clearance (double padding on that calc)
 		// std::cout << "curvature: " << path.curvature << ", cost: " << cost << std::endl;
 
 		if (cost < min_cost) {min_cost = cost; BestPath = path;}
@@ -573,7 +573,7 @@ void Navigation::Run() {
 		Vector2f goal(10,0);
 		goal_vector_ = BaseLink2Odom(goal);
 		// Set cost function weights (FPL, clearance, distance to goal)
-		setLocalPlannerWeights(1,1,1);
+		setLocalPlannerWeights(4,1,2);
 		time_prev_ = ros::Time::now();
 	}
 
