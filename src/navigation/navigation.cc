@@ -424,7 +424,7 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 	PathOption BestPath;
 	float min_cost = 1e10;
 
-	goal_loc = Odom2BaseLink(goal_loc);
+	// goal_loc = Odom2BaseLink(goal_loc);
 
 	// Get best parameter from all possible paths for normalization
 	float max_free_path_length = 1e-5;
@@ -586,15 +586,13 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
-		Vector2f goal(10,0);
-		goal_vector_ = BaseLink2Odom(goal);
+		goal_vector_ = Vector2f(3,0);
+		setLocalPlannerWeights(1,0,0);
 		// Set cost function weights (FPL, clearance, distance to goal)
 		time_prev_ = ros::Time::now();
 	}
 
 	// showObstacles();
-	setLocalPlannerWeights(1,0,0);
-	ROS_INFO("%.2f, %.2f, %.2f", clearance_weight_, free_path_length_weight_, distance_to_goal_weight_);
 	PathOption BestPath = getGreedyPath(goal_vector_);
 	moveAlongPath(BestPath);
 	printPathDetails(BestPath);
