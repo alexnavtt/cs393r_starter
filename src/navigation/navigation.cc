@@ -216,7 +216,7 @@ void Navigation::showObstacles()
 	for (const auto &obs : ObstacleList_)
 	{
 		if (i != cutoff_count) {i++; continue;} // ensure that no more than 1000 obstacles are displayed
-		visualization::DrawCross(Odom2BaseLink(obs.loc), 0.1, 0x000000, local_viz_msg_);
+		visualization::DrawCross(Odom2BaseLink(obs.loc), 0.05, 0x000000, local_viz_msg_);
 		i = 0;
 	}
 }
@@ -256,7 +256,13 @@ void Navigation::trimPathLength(PathOption &path, Vector2f goal)
 	if (angle < 0) angle = M_PI + angle; 		// negative angle means it is obtuse
 	if (goal[0] < 0) angle = 2*M_PI - angle; 	// negative x means angle > 180°
 
-	path.free_path_length = std::min(path.free_path_length, abs(angle/path.curvature));
+	// path.free_path_length = std::min(path.free_path_length, abs(angle/path.curvature));
+
+	if (abs(angle/path.curvature) < path.free_path_length)
+	{
+		path.free_path_length = abs(angle/path.curvature);
+		path.obstruction = P_center + abs(1/path.curvature) * V_center2goal;
+	} 
 }
 
 // Calculate free path length for a given path
@@ -329,6 +335,12 @@ void Navigation::predictCollisions(PathOption& path){
 	// Save results to path struct
 	path.obstruction = p_obstruction;
 	path.free_path_length = fpl_min;
+
+	// Correction for obstruction at 0,0 (can be cleaned up later)
+	if (p_obstruction[0] == 0 && p_obstruction[1] == 0)
+	{
+		path.obstruction = Vector2f({0,2/path.curvature});
+	}
 }
 
 void Navigation::calculateClearance(PathOption &path){
@@ -345,52 +357,53 @@ void Navigation::calculateClearance(PathOption &path){
 
 	// Find the geometry of the turning motion
 	Vector2f turning_center = BaseLink2Odom({0, turning_radius});
-	float turning_angle = path.free_path_length * path.curvature;
 
-	Eigen::Matrix2f rotation;
-	rotation << cos(turning_angle), -sin(turning_angle),
-				sin(turning_angle),  cos(turning_angle);
+	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : BaseLink2Odom(path.obstruction));
+	Vector2f end_point   = (turning_direction == "left" ? BaseLink2Odom(path.obstruction) : odom_loc_);
 
-	// Rotate odom_loc_ about turning_center for an angle of turning_angle to find the end_point
-	// Vector2f end_point = rotation * (odom_loc_ - turning_center) + turning_center;
-	// end_point = Odom2BaseLink(end_point);
-	// end_point.x() += ((b+l)/2+m) * cos(turning_angle);
-	// end_point.y() += ((b+l)/2+m) * sin(turning_angle);
-	// path.end_point = end_point;
-	// end_point = BaseLink2Odom(end_point);
+	// if (turning_direction == "left")
+	// {
+	// 	start_point = odom_loc_;
+	// 	end_point = BaseLink2Odom(path.obstruction);
+	// }
+	// else
+	// {
+	// 	start_point = BaseLink2Odom(path.obstruction);
+	// 	end_point = odom_loc_;
+	// 	// printVector(start_point, "start");
+	// 	// printVector(end_point, "end");
+	// }
 
-	// NOTE: While that was fun, it is probably better to use the obstruction point
-	//       which will also account for the part of the car ahead of the base_link
-	Vector2f end_point = path.obstruction;
-
-	// Define the cone that encompasses all the obstacles of interest
-	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
-	end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
+	// // Define the cone that encompasses all the obstacles of interest
+	// Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
+	// end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
 
 	// Iterate through obstacles to find the one with the minimum clearance
 	float min_clearance = vision_range_;
-	Eigen::Vector2f closest_obs;
+	Eigen::Vector2f closest_obs = ObstacleList_.begin()->loc;
 	for (const auto &obs : ObstacleList_)
 	{
 		if (isBetween(turning_center, start_point, end_point, obs.loc))
 		{
 			float offset = (obs.loc - turning_center).norm();
-			float clearance = (offset < abs_radius) ? abs_radius - w/2.0 - m - offset : offset - (abs_radius + w/2.0 + m);
-			clearance = std::max(0.0f, clearance);
+			float pseudo_clearance = abs(offset - abs_radius);
 
-			if (clearance < min_clearance) {
-				min_clearance = clearance;
+			if (pseudo_clearance < min_clearance) 
+			{
+				closest_obs = obs.loc; 
+				min_clearance = pseudo_clearance;
 			}
 		}
 	}
 
 	// Draw start and stop points relative to center
 	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(start_point), 0x000000, local_viz_msg_);
-	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0x000000, local_viz_msg_);
+	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0xff0000, local_viz_msg_);
 	// visualization::DrawCross(Odom2BaseLink(turning_center), 0.15, 0xfc3003, local_viz_msg_);
 
-	// Draw the closest obstacle which gives min clearance
+	// // Draw the closest obstacle which gives min clearance
 	// visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
+
 	path.closest_point = Odom2BaseLink(closest_obs);
 	path.clearance = min_clearance;
 }
@@ -419,7 +432,6 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 	float min_distance_to_goal = 1e5;
 	for (auto &path : PossiblePaths_)
 	{
-		
 		// Update FLP, Clearance, Closest Point, Obstruction, End Point
 		// NOTE: Dont do this twice, horrible practice
 		predictCollisions(path);
@@ -502,6 +514,9 @@ void Navigation::plotPathDetails(PathOption path){
 	
 	// Place red cross at goal position
 	visualization::DrawCross(Odom2BaseLink(goal_vector_), 0.5, 0xff0000, local_viz_msg_);
+
+	// Draw Closest Point for Clearance
+	visualization::DrawCross(path.closest_point, 0.25, 0xf07807, local_viz_msg_);
 }
 
 void Navigation::printPathDetails(PathOption path){
@@ -578,10 +593,10 @@ void Navigation::Run() {
 		time_prev_ = ros::Time::now();
 	}
 
-	showObstacles();
+	// showObstacles();
 
 	PathOption BestPath = getGreedyPath(goal_vector_);
-	moveAlongPath(BestPath);
+	// moveAlongPath(BestPath);
 	printPathDetails(BestPath);
 	plotPathDetails(BestPath);
 
