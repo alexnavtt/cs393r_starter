@@ -282,8 +282,11 @@ void Navigation::predictCollisions(PathOption& path){
 	// Iterate through points in point cloud
 	for (const auto &obs : ObstacleList_)
 	{
-		Vector2f obs_loc = Odom2BaseLink(obs.loc); 				// obstacle location in base_link frame
+		Vector2f obs_loc = Odom2BaseLink(obs.loc); 				// put obstacle location in base_link frame
 		float obs_radius = (turning_center - obs_loc).norm();	// distance to obstacle from turning center
+
+		// Ignore point if it's further away than the most direct path to current goal (approximately)
+		if (obs_loc.norm() > goal_vector_[0] + car_length_) continue;
 
 		// Check if point will obstruct car
 		if (obs_radius > rmin && obs_radius < rmax) {
@@ -412,9 +415,9 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 		float distance_to_goal 	= distance_to_goal_vec.at(i);
 		
 		// Calculate cost
-		float cost = - ( free_path_length / max_free_path_length ) * free_path_length_weight_		// (-) decrease cost with large FPL
-					 - ( clearance / max_clearance	)		   * clearance_weight_				// (+) increase cost with small clearance
-					 + ( distance_to_goal / min_distance_to_goal ) * distance_to_goal_weight_; 		// (+) increase cost with large distance to goal
+		float cost = - ( free_path_length / max_free_path_length ) * free_path_length_weight_	// (-) decrease cost with large FPL
+					 - ( clearance / max_clearance	)		   * clearance_weight_				// (-) decrease cost with large clearance
+					 + ( distance_to_goal / min_distance_to_goal ) * distance_to_goal_weight_;	// (+) increase cost with large distance to goal
 
 		// Evaluate Minimum Cost
 		if (cost < min_cost) {min_cost = cost; BestPath = PossiblePaths_.at(i);}
@@ -546,7 +549,7 @@ void Navigation::Run() {
 		time_prev_ = ros::Time::now();
 	}
 
-	// showObstacles();
+	showObstacles();
 	PathOption BestPath = getGreedyPath(goal_vector_);
 	moveAlongPath(BestPath);
 	printPathDetails(BestPath);
