@@ -64,7 +64,7 @@ const float observation_delay_ 	= 0.0;
 const float actuation_delay_ 	= 0.0;
 const float vision_angle_ 		= 3*M_PI/2;  
 const float vision_range_ 		= 10; 		// based on sim, grid squares are 2m
-const float curvature_max_ 		= 1/3.0;
+const float curvature_max_ 		= 1/1.0;	// can take turns as tight as 1m
 const float clearance_limit_	= 1.0;
 
 // Fake Robot Parameters
@@ -540,8 +540,8 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
-		goal_vector_ = Vector2f(5,0);
-		setLocalPlannerWeights(1,1,0);
+		goal_vector_ = Vector2f(4,0);
+		setLocalPlannerWeights(2,1,0);
 		// Set cost function weights (FPL, clearance, distance to goal)
 		time_prev_ = ros::Time::now();
 	}
