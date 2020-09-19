@@ -60,22 +60,21 @@ float dt_ = 1/20.0;	// made not constant to adapt for variance/lag
 // NOTE: This may cause issues with the latency compensator
 
 // Robot Parameters
-const float wheelbase_ = 0.324;
-const float observation_delay_ = 0.0;
-const float actuation_delay_ = 0.0;
-const float vision_angle_ = 3*M_PI/2;  
-const float vision_range_ = 10; // based on sim, grid squares are 2m
-const float curvature_max_ = 1/3.0;
-const float max_clearance_ = 2.0;
+const float observation_delay_ 	= 0.0;
+const float actuation_delay_ 	= 0.0;
+const float vision_angle_ 		= 3*M_PI/2;  
+const float vision_range_ 		= 10; 		// based on sim, grid squares are 2m
+const float curvature_max_ 		= 1/3.0;
+const float clearance_limit_	= 1.0;
 
 // Fake Robot Parameters
-const float w = 0.27;	//width
-const float l = 0.5;	//length
-const float m = 0.1;	//padding
-const float b = 0.324;	//wheelbase
-const Vector2f pmin(0, w/2+m);
-const Vector2f pdif((b+l)/2+m, w/2+m);
-const Vector2f pmax((b+l)/2+m, -w/2-m);
+const float car_width_ 	= 0.27;		// width
+const float car_length_ = 0.5;		// length
+const float padding_ 	= 0.1;		// padding
+const float wheelbase_ 	= 0.324;	// wheelbase
+const Vector2f pmin(0, car_width_/2+padding_);
+const Vector2f pdif((wheelbase_+car_length_)/2 + padding_,  car_width_/2+padding_);
+const Vector2f pmax((wheelbase_+car_length_)/2 + padding_, -car_width_/2-padding_);
 
 // Robot Limits
 const float max_vel_   =  1.0;
@@ -110,7 +109,7 @@ bool isBetween(const Vector2f p0, const Vector2f p1, const Vector2f p2, const Ve
 	float angle_p  = atan2( p[1] - p0[1],  p[0] - p0[0]);
 
 	if (angle_p1 > 0 and angle_p2 < 0){
-		return (angle_p > angle_p1 or angle_p1 < angle_p2);
+		return (angle_p > angle_p1 or angle_p < angle_p2);
 	}
 	else{
 		return (angle_p > angle_p1 and angle_p < angle_p2);
@@ -248,16 +247,16 @@ void Navigation::printVector(Vector2f print_vector, std::string vector_name){
 void Navigation::trimPathLength(PathOption &path, Vector2f goal)
 {
 	// NOTE: Defined in the Base Link frame
-	Vector2f P_center = {0, 1/path.curvature};
-	Vector2f V_center2goal = (goal - P_center) / (goal - P_center).norm();
-	Vector2f V_center2home = -P_center/P_center.norm();
+	Vector2f P_center = {0, 1/path.curvature};								// Center of rotation
+	Vector2f V_center2goal = (goal - P_center) / (goal - P_center).norm();	// Unit vector from center of rotation to nav goal
+	Vector2f V_center2home = -P_center/P_center.norm();						// Univ vector from center of rotation to robot
 
+	// Find the angle between the start point and the end point
 	float angle = acos(V_center2home.dot(V_center2goal));
 	if (angle < 0) angle = M_PI + angle; 		// negative angle means it is obtuse
 	if (goal[0] < 0) angle = 2*M_PI - angle; 	// negative x means angle > 180°
 
-	// path.free_path_length = std::min(path.free_path_length, abs(angle/path.curvature));
-
+	// If trimmed path length is less than free path length, substitute in the trimmed value
 	if (abs(angle/path.curvature) < path.free_path_length)
 	{
 		path.free_path_length = abs(angle/path.curvature);
@@ -272,83 +271,62 @@ void Navigation::predictCollisions(PathOption& path){
 	// Need to flip certain variables if turning CW
 	int sign = ( (r > 0) ? 1 : -1);
 
-	Vector2f c(0,r); // point of rotation
+	Vector2f turning_center(0,r); // point of rotation
 	
 	// Get radii to specific points based on curvature
-	float rmin = (sign*c-pmin).norm();
-	float rdif = (sign*c-pdif).norm();
-	float rmax = (sign*c-pmax).norm();
+	float rmin = (sign*turning_center - pmin).norm();		// radius from center of rotation to innermost point on the rear axle
+	float rdif = (sign*turning_center - pdif).norm();		// radius from center of rotation to the turning corner of the robot
+	float rmax = (sign*turning_center - pmax).norm();		// radius from center of rotation to the outermost point on the robot
 
-	// Initialize loop variables
-	float fpl_min = 0.0;
-	Vector2f p_obstruction(0.0, 0.0);
+	// Default obstruction point is full simecircle of rotation
+	float fpl_min = abs(M_PI*r);
+	Vector2f p_obstruction(0, 2*r);
 
-	bool first_loop = true;
 	// Iterate through points in point cloud
 	for (const auto &obs : ObstacleList_)
 	{
-		// Get point in the right frame
-		Vector2f p_future = Odom2BaseLink(obs.loc);
-		// Distance to point
-		float rp = (c-p_future).norm();
-		
-		// Initialize loop variables
-		float fpl_current;
-		bool obstruction = false;
+		Vector2f obs_loc = Odom2BaseLink(obs.loc); 				// obstacle location in base_link frame
+		float obs_radius = (turning_center - obs_loc).norm();	// distance to obstacle from turning center
 
 		// Check if point will obstruct car
-		if (rp > rmin && rp < rmax) {
-			obstruction = true;
+		if (obs_radius > rmin && obs_radius < rmax) {
 			Vector2f p_current;
-			if (rp < rdif) {
-				// Inner side collision
-				float phi = acos((sign*r-w/2-m)/rp);
-				float x = rp*sin(phi);
-				p_current = {x, sign*(w/2+m)};
+			
+			// Inner side collision
+			if (obs_radius < rdif) {
+				float phi = acos(( sign*r - car_width_/2 - padding_ )/obs_radius);
+				float x = obs_radius*sin(phi);
+				p_current = {x, sign*(car_width_/2+padding_)};
+			
+			// Front collision
+			}else if (obs_radius > rdif) {
+				float phi = asin(((wheelbase_+car_length_)/2+padding_)/obs_radius);
+				float y = r-sign*obs_radius*cos(phi);
+				p_current = {(wheelbase_+car_length_)/2+padding_, y};
 			}
-			else if (rp > rdif) {
-				// Front collision
-				float phi = asin(((b+l)/2+m)/rp);
-				float y = r-sign*rp*cos(phi);
-				p_current = {(b+l)/2+m, y};
-			}
+			
 			// Use law of cosines to compute free path length
-			float side_length = (p_future-p_current).norm();
-			float theta = acos((side_length*side_length-2*rp*rp)/(-2*rp*rp));
+			float side_length = (obs_loc-p_current).norm();
+			float theta = acos((side_length*side_length-2*obs_radius*obs_radius)/(-2*obs_radius*obs_radius));
+			
 			// Solve for free path length of the current point
-			fpl_current = sign*theta*r;
-		}
-		else {
-			// No collision
-			// NOTE: This limiting method favors straight paths due to how the GLP is weighted
-			fpl_current = sign*r*M_PI; // 180deg U-turn
-			if (fpl_current > vision_range_) fpl_current = vision_range_; // limit to range of Lidar
-		}
-		
-		// If this is the first loop or this is the smallest fpl so far, record this value
-		if (first_loop || fpl_current < fpl_min){
-			fpl_min = fpl_current;
-			if (obstruction) p_obstruction = p_future;
-			first_loop = false;
+			float fpl_current = sign*theta*r;
+
+			// If this is the first loop or this is the smallest fpl so far, record this value
+			if (fpl_current < fpl_min){
+				fpl_min = fpl_current;
+				p_obstruction = obs_loc;
+			}
 		}
 	}
+
 	// Save results to path struct
 	path.obstruction = p_obstruction;
 	path.free_path_length = fpl_min;
-
-	// Correction for obstruction at 0,0 (can be cleaned up later)
-	if (p_obstruction[0] == 0 && p_obstruction[1] == 0)
-	{
-		path.obstruction = Vector2f({0,2/path.curvature});
-	}
 }
 
 void Navigation::calculateClearance(PathOption &path){
-	// Ensure that a FPL has been calculated for the path already
-	// if (path.free_path_length == 0) {ROS_WARN("Calculating clearance before free path length. Returning 0!"); return;}
 
-	// If radius is infinity (curvature == 0), make it some large number
-	// float turning_radius = (path.curvature == 0 ? 1e5 : 1/path.curvature);
 	float turning_radius = 1/path.curvature;
 	float abs_radius = abs(turning_radius);
 
@@ -360,23 +338,6 @@ void Navigation::calculateClearance(PathOption &path){
 
 	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : BaseLink2Odom(path.obstruction));
 	Vector2f end_point   = (turning_direction == "left" ? BaseLink2Odom(path.obstruction) : odom_loc_);
-
-	// if (turning_direction == "left")
-	// {
-	// 	start_point = odom_loc_;
-	// 	end_point = BaseLink2Odom(path.obstruction);
-	// }
-	// else
-	// {
-	// 	start_point = BaseLink2Odom(path.obstruction);
-	// 	end_point = odom_loc_;
-	// 	// printVector(start_point, "start");
-	// 	// printVector(end_point, "end");
-	// }
-
-	// // Define the cone that encompasses all the obstacles of interest
-	// Vector2f start_point = (turning_direction == "left" ? odom_loc_ : end_point);
-	// end_point 			 = (turning_direction == "left" ? end_point : odom_loc_);
 
 	// Iterate through obstacles to find the one with the minimum clearance
 	float min_clearance = vision_range_;
@@ -396,16 +357,8 @@ void Navigation::calculateClearance(PathOption &path){
 		}
 	}
 
-	// Draw start and stop points relative to center
-	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(start_point), 0x000000, local_viz_msg_);
-	// visualization::DrawLine(Odom2BaseLink(turning_center), Odom2BaseLink(end_point), 0xff0000, local_viz_msg_);
-	// visualization::DrawCross(Odom2BaseLink(turning_center), 0.15, 0xfc3003, local_viz_msg_);
-
-	// // Draw the closest obstacle which gives min clearance
-	// visualization::DrawCross(Odom2BaseLink(closest_obs), 0.15, 0x0bfc03, local_viz_msg_);
-
 	path.closest_point = Odom2BaseLink(closest_obs);
-	path.clearance = min_clearance;
+	path.clearance = std::min(min_clearance, clearance_limit_);
 }
 
 void Navigation::setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG)
@@ -417,52 +370,57 @@ void Navigation::setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG)
 
 PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 {
+	int num_paths = 20;
+
 	// Clear out possible paths and reinitialize
-	createPossiblePaths(20);
+	createPossiblePaths(num_paths);
 
 	// Initialize output and cost
 	PathOption BestPath;
 	float min_cost = 1e10;
 
-	// goal_loc = Odom2BaseLink(goal_loc);
+	// Vectors to store results
+	vector<double> FPL_vec;
+	vector<double> clearance_vec;
+	vector<double> distance_to_goal_vec;
 
 	// Get best parameter from all possible paths for normalization
 	float max_free_path_length = 1e-5;
 	float max_clearance = 1e-5;
 	float min_distance_to_goal = 1e5;
+
 	for (auto &path : PossiblePaths_)
 	{
 		// Update FLP, Clearance, Closest Point, Obstruction, End Point
-		// NOTE: Dont do this twice, horrible practice
 		predictCollisions(path);
 		trimPathLength(path, goal_loc);
 		calculateClearance(path);
 
-		if (path.free_path_length > max_free_path_length) max_free_path_length = path.free_path_length;
-		if (path.clearance > max_clearance) max_clearance = path.clearance;
-		float distance_to_goal = (path.end_point - goal_loc).norm();
-		path.distance_to_goal = distance_to_goal;
-		if (distance_to_goal < min_distance_to_goal) min_distance_to_goal = distance_to_goal;
+		path.distance_to_goal = (path.obstruction - goal_loc).norm(); // approximately
+
+		max_free_path_length = std::max(path.free_path_length, max_free_path_length);
+		max_clearance = std::max(max_clearance, path.clearance);
+		min_distance_to_goal = std::min(min_distance_to_goal, path.distance_to_goal);
+
+		FPL_vec.push_back(path.free_path_length);
+		clearance_vec.push_back(path.clearance);
+		distance_to_goal_vec.push_back(path.distance_to_goal);
 	}
-	// std::cout << "fpl_b: " << max_free_path_length << ", c_b: " << max_clearance << ", dtg_b: " << min_distance_to_goal << std::endl;
 
 	// Iterate through paths to find the best one
-	for (auto &path : PossiblePaths_)
+	for (int i = 0; i < num_paths; i++)
 	{
-		// Update FLP, Clearance, Closest Point, Obstruction, End Point
-		predictCollisions(path);
-		trimPathLength(path, goal_loc);
-		calculateClearance(path);
+		float free_path_length 	= FPL_vec.at(i);
+		float clearance 		= clearance_vec.at(i);
+		float distance_to_goal 	= distance_to_goal_vec.at(i);
 		
-		// consider changing clearance to:
-		// + ( max_clearance / path.clearance )
-		float cost = - ( path.free_path_length / max_free_path_length ) * free_path_length_weight_		// (-) decrease cost with large FPL
-					 - ( path.clearance / max_clearance )		  		* clearance_weight_				// (+) increase cost with small clearance
-					 + ( path.distance_to_goal / min_distance_to_goal ) * distance_to_goal_weight_; 	// (+) increase cost with large distance to goal
-		//if ( path.clearance < m ) cost = cost*5; // significantly increase cost if not enough clearance
-		// std::cout << "curvature: " << path.curvature << ", cost: " << cost << std::endl;
+		// Calculate cost
+		float cost = - ( free_path_length / max_free_path_length ) * free_path_length_weight_		// (-) decrease cost with large FPL
+					 - ( clearance / max_clearance	)		   * clearance_weight_				// (+) increase cost with small clearance
+					 + ( distance_to_goal / min_distance_to_goal ) * distance_to_goal_weight_; 		// (+) increase cost with large distance to goal
 
-		if (cost < min_cost) {min_cost = cost; BestPath = path;}
+		// Evaluate Minimum Cost
+		if (cost < min_cost) {min_cost = cost; BestPath = PossiblePaths_.at(i);}
 	}
 
 	return BestPath;
@@ -493,10 +451,10 @@ void Navigation::moveAlongPath(PathOption path){
 
 void Navigation::plotPathDetails(PathOption path){
 	// Outline car
-	visualization::DrawLine({-(l-b)/2, w/2},  {(b+l)/2, w/2},  0x000000, local_viz_msg_);	//top
-	visualization::DrawLine({-(l-b)/2, -w/2}, {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);	//bottom
-	visualization::DrawLine({(b+l)/2, w/2},   {(b+l)/2, -w/2}, 0x000000, local_viz_msg_);	//front
-	visualization::DrawLine({-(l-b)/2, -w/2}, {-(l-b)/2, w/2}, 0x000000, local_viz_msg_);	//back
+	visualization::DrawLine({-(car_length_-wheelbase_)/2, car_width_/2},  {(wheelbase_+car_length_)/2, car_width_/2},  0x000000, local_viz_msg_);	//top
+	visualization::DrawLine({-(car_length_-wheelbase_)/2, -car_width_/2}, {(wheelbase_+car_length_)/2, -car_width_/2}, 0x000000, local_viz_msg_);	//bottom
+	visualization::DrawLine({(wheelbase_+car_length_)/2, car_width_/2},   {(wheelbase_+car_length_)/2, -car_width_/2}, 0x000000, local_viz_msg_);	//front
+	visualization::DrawLine({-(car_length_-wheelbase_)/2, -car_width_/2}, {-(car_length_-wheelbase_)/2, car_width_/2}, 0x000000, local_viz_msg_);	//back
 
 	// Place green cross at obstruction point if it exists
 	if (path.obstruction.norm() > 0)
@@ -505,8 +463,7 @@ void Navigation::plotPathDetails(PathOption path){
 	// Draw all the possible path options
 	for (auto other_path : PossiblePaths_)
 	{
-		other_path.clearance = 0;
-		visualization::DrawPathOption(other_path.curvature, other_path.free_path_length, other_path.clearance, local_viz_msg_);
+		visualization::DrawPathOption(other_path.curvature, other_path.free_path_length, 0.0 /*clearance*/, local_viz_msg_);
 	}
 
 	// Draw path option
@@ -586,8 +543,8 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
-		goal_vector_ = Vector2f(3,0);
-		setLocalPlannerWeights(1,0,0);
+		goal_vector_ = Vector2f(10,0);
+		setLocalPlannerWeights(1,1,0);
 		// Set cost function weights (FPL, clearance, distance to goal)
 		time_prev_ = ros::Time::now();
 	}
@@ -607,11 +564,6 @@ void Navigation::Run() {
 		navigation_success_ = true;
 		ROS_WARN("Navigation success!");
 	}
-
-	// PathOption test_path{0.001, 0, 0, 0, {0,0}, {0,0}, {0,0}};
-	// predictCollisions(test_path);
-	// std::cout << "free path length: " << test_path.free_path_length << std::endl;
-	// plotPathDetails(test_path);
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
