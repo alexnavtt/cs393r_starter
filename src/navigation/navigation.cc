@@ -266,21 +266,18 @@ void Navigation::trimPathLength(PathOption &path, Vector2f goal)
 
 // Calculate free path length for a given path
 void Navigation::predictCollisions(PathOption& path){
-	float r = 1/path.curvature; // radius of curvature
+	float radius = 1/path.curvature; // can be negative
 
-	// Need to flip certain variables if turning CW
-	int sign = ( (r > 0) ? 1 : -1);
-
-	Vector2f turning_center(0,r); // point of rotation
+	Vector2f turning_center(0,radius); // point of rotation
 	
 	// Get radii to specific points based on curvature
-	float rmin = (sign*turning_center - pmin).norm();		// radius from center of rotation to innermost point on the rear axle
-	float rdif = (sign*turning_center - pdif).norm();		// radius from center of rotation to the turning corner of the robot
-	float rmax = (sign*turning_center - pmax).norm();		// radius from center of rotation to the outermost point on the robot
+	float rmin = (Sign(radius)*turning_center - pmin).norm();	// radius from center of rotation to innermost point on the rear axle
+	float rdif = (Sign(radius)*turning_center - pdif).norm();	// radius from center of rotation to the turning corner of the robot
+	float rmax = (Sign(radius)*turning_center - pmax).norm();	// radius from center of rotation to the outermost point on the robot
 
 	// Default obstruction point is full simecircle of rotation
-	float fpl_min = abs(M_PI*r);
-	Vector2f p_obstruction(0, 2*r);
+	float fpl_min = abs(M_PI*radius);
+	Vector2f p_obstruction(0, 2*radius);
 
 	// Iterate through points in point cloud
 	for (const auto &obs : ObstacleList_)
@@ -294,14 +291,14 @@ void Navigation::predictCollisions(PathOption& path){
 			
 			// Inner side collision
 			if (obs_radius < rdif) {
-				float phi = acos(( sign*r - car_width_/2 - padding_ )/obs_radius);
+				float phi = acos(( Sign(radius)*radius-car_width_/2-padding_)/obs_radius );
 				float x = obs_radius*sin(phi);
-				p_current = {x, sign*(car_width_/2+padding_)};
+				p_current = {x, Sign(radius)*(car_width_/2+padding_)};
 			
 			// Front collision
 			}else if (obs_radius > rdif) {
 				float phi = asin(((wheelbase_+car_length_)/2+padding_)/obs_radius);
-				float y = r-sign*obs_radius*cos(phi);
+				float y = radius - Sign(radius)*obs_radius*cos(phi);
 				p_current = {(wheelbase_+car_length_)/2+padding_, y};
 			}
 			
@@ -310,7 +307,7 @@ void Navigation::predictCollisions(PathOption& path){
 			float theta = acos((side_length*side_length-2*obs_radius*obs_radius)/(-2*obs_radius*obs_radius));
 			
 			// Solve for free path length of the current point
-			float fpl_current = sign*theta*r;
+			float fpl_current = Sign(radius)*theta*radius;
 
 			// If this is the first loop or this is the smallest fpl so far, record this value
 			if (fpl_current < fpl_min){
@@ -543,7 +540,7 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
-		goal_vector_ = Vector2f(10,0);
+		goal_vector_ = Vector2f(5,0);
 		setLocalPlannerWeights(1,1,0);
 		// Set cost function weights (FPL, clearance, distance to goal)
 		time_prev_ = ros::Time::now();
