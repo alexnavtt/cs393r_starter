@@ -43,6 +43,7 @@ struct PathOption {
   float clearance;
   float free_path_length;
   float distance_to_goal;
+  float cost;
   Eigen::Vector2f obstruction;
   Eigen::Vector2f closest_point;
   Eigen::Vector2f end_point; 
@@ -176,7 +177,6 @@ class Navigation {
   void predictCollisions(PathOption &path);
   void calculateClearance(PathOption &path);
   void trimPathLength(PathOption &path, Eigen::Vector2f goal);
-
 
   // LocalPlanner planner_;
 };
