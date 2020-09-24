@@ -127,11 +127,10 @@ float getAngleBetween(const Vector2f point_A, const Vector2f point_B, const Vect
 		/           \
 	   B______c______A
 	*/
-	float side_a = (point_B-point_C).norm();
-	float side_b = (point_A-point_C).norm();
-	float side_c = (point_A-point_B).norm();
-	// Law of Cosines
-	float angle_C = acos((side_c*side_c-side_a*side_a-side_b*side_b)/(-2*side_a*side_b));
+	Vector2f vec1 = point_B - point_C;
+	Vector2f vec2 = point_A - point_C;
+	float angle_C = acos((vec1/vec1.norm()).dot(vec2/vec2.norm()));
+	angle_C = angle_C + M_PI * (angle_C < 0); // negative indicates obtuse angle
 	return angle_C;
 }
 
@@ -263,20 +262,16 @@ void Navigation::createPossiblePaths(float num)
 void Navigation::trimPathLength(PathOption &path, Vector2f goal)
 {
 	// NOTE: Defined in the Base Link frame
-	Vector2f P_center = {0, 1/path.curvature};								// Center of rotation
-	Vector2f V_center2goal = (goal - P_center) / (goal - P_center).norm();	// Unit vector from center of rotation to nav goal
-	Vector2f V_center2home = -P_center/P_center.norm();						// Univ vector from center of rotation to robot
+	Vector2f P_center = {0, 1/path.curvature};	// Center of rotation
 
-	// Find the angle between the start point and the end point
-	float angle = acos(V_center2home.dot(V_center2goal));
-	if (angle < 0) angle = M_PI + angle; 		// negative angle means it is obtuse
+	float angle = getAngleBetween(goal, {0,0}, P_center);
 	if (goal[0] < 0) angle = 2*M_PI - angle; 	// negative x means angle > 180°
 
 	// If trimmed path length is less than free path length, substitute in the trimmed value
 	if (abs(angle/path.curvature) < path.free_path_length)
 	{
 		path.free_path_length = abs(angle/path.curvature);
-		path.obstruction = P_center + abs(1/path.curvature) * V_center2goal;
+		path.obstruction = P_center + 1/path.curvature * (goal - P_center)/(goal - P_center).norm();
 	} 
 }
 
@@ -361,10 +356,11 @@ void Navigation::calculateClearance(PathOption &path){
 	Vector2f point_1 = (radius > 0 ? start_point : end_point);
 	Vector2f point_2 = (radius > 0 ? end_point : start_point);
 
-	float clearance = 1.0;
-	float min_clearance = 1.0;
-	Vector2f closest_point(0,0);
+	// Initialize clearance at its maximum allowed value
+	float min_clearance = clearance_limit_;
+
 	// Get angle between start and end
+	Vector2f closest_point(0,0);
 	for (const auto &obs : ObstacleList_)
 	{
 		Vector2f obs_point = Odom2BaseLink(obs.loc);
@@ -372,7 +368,7 @@ void Navigation::calculateClearance(PathOption &path){
 		if (isBetween(center, point_1, point_2, obs_point))
 		{
 			float radius_to_point = (center-obs_point).norm();
-			clearance = std::abs(radius_to_point - std::abs(radius));
+			float clearance = abs(radius_to_point - abs(radius));
 			if (clearance < min_clearance)
 			{
 				min_clearance = clearance;
@@ -573,14 +569,13 @@ void Navigation::Run() {
 	visualization::ClearVisualizationMsg(global_viz_msg_);
 
 	// Added this section for anything that we only want to happen once (like setup function)
+	// NOTE: This init function is added to only initialize AFTER odometry has been received
 	if  (init_){
 		while (init_ and ros::ok()){
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
 		goal_vector_ = Vector2f(4,0);
-		setLocalPlannerWeights(5,2,1);
-		// Set cost function weights (FPL, clearance, distance to goal)
 		time_prev_ = ros::Time::now();
 	}
 
