@@ -176,10 +176,7 @@ class Navigation {
   void createPossiblePaths(float num);
   void predictCollisions(PathOption &path);
   void calculateClearance(PathOption &path);
-  // void calculateClearanceBL(PathOption &path);
   void trimPathLength(PathOption &path, Eigen::Vector2f goal);
-  // float getAngleBetween(Eigen::Vector2f point_A, Eigen::Vector2f point_B, Eigen::Vector2f point_C);
-
 
   // LocalPlanner planner_;
 };

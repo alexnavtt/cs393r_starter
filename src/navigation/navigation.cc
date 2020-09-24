@@ -116,6 +116,7 @@ bool isBetween(const Vector2f p0, const Vector2f p1, const Vector2f p2, const Ve
 	}
 }
 
+// whoops, this never actually gets used ¯\_(ツ)_/¯
 float getAngleBetween(const Vector2f point_A, const Vector2f point_B, const Vector2f point_C){
 	/* returns absolute value of angle between AC and BC
 	          C
@@ -146,7 +147,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		free_path_length_weight_(1),
 		clearance_weight_(1),
 		distance_to_goal_weight_(1),
-		obstacle_memory_(0)
+		obstacle_memory_(1)
 {
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -340,6 +341,7 @@ void Navigation::predictCollisions(PathOption& path){
 	path.free_path_length = fpl_min;
 }
 
+// REPLACED WITH BELOW VERSION IN BASE_LINK FRAME
 // void Navigation::calculateClearance(PathOption &path){
 
 // 	float turning_radius = 1/path.curvature;
@@ -452,7 +454,6 @@ PathOption Navigation::getGreedyPath(Vector2f goal_loc)
 		predictCollisions(path);
 		trimPathLength(path, goal_loc);
 		calculateClearance(path);
-		calculateClearanceBL(path);
 		float clearance_padded = path.clearance - (car_width_/2+padding_*2);
 		if (clearance_padded < 0) clearance_padded = 1e-5;
 
