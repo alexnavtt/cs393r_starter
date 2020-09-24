@@ -341,43 +341,7 @@ void Navigation::predictCollisions(PathOption& path){
 	path.free_path_length = fpl_min;
 }
 
-// REPLACED WITH BELOW VERSION IN BASE_LINK FRAME
-// void Navigation::calculateClearance(PathOption &path){
-
-// 	float turning_radius = 1/path.curvature;
-// 	float abs_radius = abs(turning_radius);
-
-// 	// Determine if the car is turning left or right (the math is slightly different for each)
-// 	std::string turning_direction = (path.curvature < 0 ? "right" : "left");
-
-// 	// Find the geometry of the turning motion
-// 	Vector2f turning_center = BaseLink2Odom({0, turning_radius});
-
-// 	Vector2f start_point = (turning_direction == "left" ? odom_loc_ : BaseLink2Odom(path.obstruction));
-// 	Vector2f end_point   = (turning_direction == "left" ? BaseLink2Odom(path.obstruction) : odom_loc_);
-
-// 	// Iterate through obstacles to find the one with the minimum clearance
-// 	float min_clearance = vision_range_;
-// 	Eigen::Vector2f closest_obs = ObstacleList_.begin()->loc;
-// 	for (const auto &obs : ObstacleList_)
-// 	{
-// 		if (isBetween(turning_center, start_point, end_point, obs.loc))
-// 		{
-// 			float offset = (obs.loc - turning_center).norm();
-// 			float pseudo_clearance = abs(offset - abs_radius);
-
-// 			if (pseudo_clearance < min_clearance) 
-// 			{
-// 				closest_obs = obs.loc; 
-// 				min_clearance = pseudo_clearance;
-// 			}
-// 		}
-// 	}
-
-// 	path.closest_point = Odom2BaseLink(closest_obs);
-// 	path.clearance = std::min(min_clearance, clearance_limit_);
-// }
-
+// New base_link frame clearance calc
 void Navigation::calculateClearance(PathOption &path){
 	// Warning: These can be negative
 	float radius = 1/path.curvature;
