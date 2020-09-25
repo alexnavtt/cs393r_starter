@@ -35,7 +35,6 @@
 #include "amrl_msgs/VisualizationMsg.h"
 #include "gflags/gflags.h"
 #include "geometry_msgs/PoseArray.h"
-#include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "sensor_msgs/LaserScan.h"
 #include "nav_msgs/Odometry.h"
 #include "ros/ros.h"
@@ -71,7 +70,7 @@ using visualization::DrawParticle;
 DEFINE_string(laser_topic, "/scan", "Name of ROS topic for LIDAR data");
 DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
 DEFINE_string(init_topic,
-              "/initialpose",
+              "/set_pose",
               "Name of ROS topic for initialization");
 DEFINE_string(map, "", "Map file to use");
 
@@ -202,11 +201,10 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   PublishVisualization();
 }
 
-void InitCallback(const nav_msgs::Odometry& msg) {
-  const Vector2f init_loc(msg.pose.pose.position.x, msg.pose.pose.position.y);
-  const float init_angle =
-      2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
-  const string map = FLAGS_map.empty() ? CONFIG_map_name_ : FLAGS_map;
+void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
+  const Vector2f init_loc(msg.pose.x, msg.pose.y);
+  const float init_angle = msg.pose.theta;
+  const string map = msg.map;
   printf("Initialize: %s (%f,%f) %f\u00b0\n",
          map.c_str(),
          init_loc.x(),
@@ -216,22 +214,11 @@ void InitCallback(const nav_msgs::Odometry& msg) {
   trajectory_points_.clear();
 }
 
-void InitPoseCallback(const geometry_msgs::PoseWithCovarianceStamped& msg) {
-  const float x = msg.pose.pose.position.x;
-  const float y = msg.pose.pose.position.y;
-  const float theta =
-      2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
-  const string map = FLAGS_map.empty() ? CONFIG_map_name_ : FLAGS_map;
-  printf("Initialize: %s (%f,%f) %f\u00b0\n",
-      map.c_str(), x, y, RadToDeg(theta));
-  particle_filter_.Initialize(map, Vector2f(x, y), theta);
-}
-
 void ProcessLive(ros::NodeHandle* n) {
   ros::Subscriber initial_pose_sub = n->subscribe(
       FLAGS_init_topic.c_str(),
       1,
-      InitPoseCallback);
+      InitCallback);
   ros::Subscriber laser_sub = n->subscribe(
       FLAGS_laser_topic.c_str(),
       1,
