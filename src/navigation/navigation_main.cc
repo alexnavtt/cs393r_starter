@@ -84,7 +84,21 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   const Vector2f kLaserLoc(0.2, 0);
 
   static vector<Vector2f> point_cloud_;
-  // TODO Convert the LaserScan to a point cloud
+  point_cloud_.clear();
+
+  // Convert the LaserScan to a point cloud in the base_link frame
+  int iter = 0;
+  for (float theta = msg.angle_min; theta <= msg.angle_max; theta += msg.angle_increment)
+  {
+    float range = msg.ranges.at(iter);
+    if (range <= msg.range_min or range >= 0.95*msg.range_max) {iter++; continue;} // Factor of 0.95 keeps max range from registering as an obstacle
+
+    point_cloud_.push_back(Vector2f {kLaserLoc[0] + range*cos(theta),
+                                     kLaserLoc[1] + range*sin(theta)});
+
+    iter++;
+  }
+
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
 }
@@ -140,6 +154,8 @@ int main(int argc, char** argv) {
       n.subscribe(FLAGS_laser_topic, 1, &LaserCallback);
   ros::Subscriber goto_sub =
       n.subscribe("/move_base_simple/goal", 1, &GoToCallback);
+
+  navigation_->setLocalPlannerWeights(5,2,1);
 
   RateLoop loop(20.0);
   while (run_ && ros::ok()) {

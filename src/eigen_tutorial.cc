@@ -41,6 +41,8 @@ void DemoBasics() {
 
   cout << "Print the vector to stdout:\n" << v1 << endl;
 
+  cout << "test: " << std::abs(-1) << endl;
+
   cout << "Initialize a 2x2 matrix m1." << endl;
   Matrix2f m1;
   m1  << 0, 2,
@@ -50,6 +52,8 @@ void DemoBasics() {
   cout << "Multiply matrix times vector." << endl;
   Vector2f v2 = m1 * v1;
   cout << "Resulting vector:\n" << v2 << endl;
+
+  cout << "Test: " << (v1-v2).norm() << endl;
 }
 
 void DemoRotations() {
