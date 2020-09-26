@@ -61,6 +61,23 @@ void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
 }
 
+// TODO by Connor
+void ParticleFilter::UpdateParticleLocation(float dx_odom, float dy_odom, float dtheta_odom, Particle& particle)
+{
+  // Use the motion model to update each particle's location
+  // This function will probably be called (sparingly) in the ObserveOdometry callback
+  // You can update the particle location directly by modifying the particle variable
+  // defined above since it was passed by reference (using the "&" symbol).
+
+  // You will need to use the Gaussian random number generator provided. For
+  // example, to generate a random number from a Gaussian with mean 0, and
+  // standard deviation 2:
+  float x = rng_.Gaussian(0.0, 2.0);
+  printf("Random number drawn from Gaussian distribution with 0 mean and "
+         "standard deviation of 2 : %f\n", x);
+}
+
+// TODO by Mark
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             const float angle,
                                             int num_ranges,
@@ -113,6 +130,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   }
 }
 
+// TODO by Alex
 void ParticleFilter::Update(const vector<float>& ranges,
                             float range_min,
                             float range_max,
@@ -144,6 +162,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
   p_ptr->weight += log_error_sum;
 }
 
+// TODO by whoever gets here first
 void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights.
   // The current particles are in the `particles_` variable. 
@@ -162,6 +181,7 @@ void ParticleFilter::Resample() {
          x);
 }
 
+// TODO by Mark
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float range_min,
                                   float range_max,
@@ -171,19 +191,12 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Call the Update and Resample steps as necessary.
 }
 
+// TODO by Connor
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
                                      const float odom_angle) {
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-
-
-  // You will need to use the Gaussian random number generator provided. For
-  // example, to generate a random number from a Gaussian with mean 0, and
-  // standard deviation 2:
-  float x = rng_.Gaussian(0.0, 2.0);
-  printf("Random number drawn from Gaussian distribution with 0 mean and "
-         "standard deviation of 2 : %f\n", x);
 }
 
 void ParticleFilter::Initialize(const string& map_file,

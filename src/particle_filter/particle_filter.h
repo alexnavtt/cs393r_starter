@@ -42,7 +42,7 @@ struct Particle {
 class ParticleFilter {
  public:
   // Default Constructor.
-   ParticleFilter();
+  ParticleFilter();
 
   // Observe a new laser scan.
   void ObserveLaser(const std::vector<float>& ranges,
@@ -65,6 +65,9 @@ class ParticleFilter {
 
   // Get robot's current location.
   void GetLocation(Eigen::Vector2f* loc, float* angle) const;
+
+  // Update a particle's location given current and last odom
+  void UpdateParticleLocation(float dx_odom, float dy_odom, float dtheta_odom, Particle &particle);
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,
