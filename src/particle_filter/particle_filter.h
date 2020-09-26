@@ -102,6 +102,9 @@ class ParticleFilter {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+
+  // Observation Likelihood Model
+  float var_obs_ = 1;   // variance of the gaussian portion of the model
 };
 }  // namespace slam
 

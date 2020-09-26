@@ -119,11 +119,29 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             float angle_min,
                             float angle_max,
                             Particle* p_ptr) {
-  // Implement the update step of the particle filter here.
-  // You will have to use the `GetPredictedPointCloud` to predict the expected
-  // observations for each particle, and assign weights to the particles based
-  // on the observation likelihood computed by relating the observation to the
-  // predicted point cloud.
+  // Get predicted point cloud
+  vector<Vector2f> predicted_cloud;
+  GetPredictedPointCloud(p_ptr->loc, p_ptr->angle,
+                         ranges.size(),
+                         range_min, range_max,
+                         angle_min, angle_max,
+                         &predicted_cloud);
+
+  // Calculate Particle Weight (pure Gaussian to start off)
+  float log_error_sum = 0;
+  float laser_angle = angle_min;
+  float angle_diff = (angle_max - angle_min)/ranges.size();
+  for (size_t i = 0; i < ranges.size(); i++)
+  {
+    Vector2f real_reading(p_ptr->loc.x() + ranges.at(i)*cos(laser_angle + p_ptr->angle),
+                          p_ptr->loc.y() + ranges.at(i)*sin(laser_angle + p_ptr->angle));
+    float diff_sq = (real_reading - predicted_cloud.at(i)).squaredNorm();
+    log_error_sum += -diff_sq/var_obs_;
+
+    laser_angle += angle_diff;
+  }
+
+  p_ptr->weight += log_error_sum;
 }
 
 void ParticleFilter::Resample() {
