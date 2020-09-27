@@ -36,7 +36,7 @@ namespace particle_filter {
 struct Particle {
   Eigen::Vector2f loc;
   float angle;
-  double weight;
+  double log_weight; // changed this to log weight - Alex
 };
 
 class ParticleFilter {
@@ -107,7 +107,10 @@ class ParticleFilter {
   bool odom_initialized_;
 
   // Observation Likelihood Model
-  float var_obs_ = 1;   // variance of the gaussian portion of the model
+  float var_obs_;   // variance of the gaussian portion of the model
+
+  // Resampling variables
+  float max_log_particle_weight_;
 };
 }  // namespace slam
 

@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
@@ -149,6 +150,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
   float log_error_sum = 0;
   float laser_angle = angle_min;
   float angle_diff = (angle_max - angle_min)/ranges.size();
+
   for (size_t i = 0; i < ranges.size(); i++)
   {
     Vector2f real_reading(p_ptr->loc.x() + ranges.at(i)*cos(laser_angle + p_ptr->angle),
@@ -159,29 +161,45 @@ void ParticleFilter::Update(const vector<float>& ranges,
     laser_angle += angle_diff;
   }
 
-  p_ptr->weight += log_error_sum;
+  p_ptr->log_weight += log_error_sum;
 }
 
-// TODO by whoever gets here first
+// TODO by anyone
 void ParticleFilter::Resample() {
-  // Resample the particles, proportional to their weights.
-  // The current particles are in the `particles_` variable. 
-  // Create a variable to store the new particles, and when done, replace the
-  // old set of particles:
-  // vector<Particle> new_particles';
-  // During resampling: 
-  //    new_particles.push_back(...)
-  // After resampling:
-  // particles_ = new_particles;
+  // Initialize Local Variables
+  vector<Particle> new_particles;                           // temp variable to house new particles
+  vector<float> normalized_log_weights(particles_.size());  // vector of log(w/w_max) = log(w) - log(w_max)
+  float normalized_sum = 0;                                 // sum of normalized (but NOT log) weights: used for resampling
+  
+  max_log_particle_weight_ = -std::numeric_limits<float>::infinity(); // Since the range of weights is (-inf,0] we have to initialize max at -inf
 
-  // You will need to use the uniform random number generator provided. For
-  // example, to generate a random number between 0 and 1:
-  float x = rng_.UniformRandom(0, 1);
-  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-         x);
+  // Find maximum particle weight
+  for (const auto &particle : particles_)
+    if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
+
+  // Normalize each of the log weights
+  for (size_t i=0; i < particles_.size(); i++){
+    normalized_log_weights.at(i) = particles_.at(i).log_weight - max_log_particle_weight_;
+    normalized_sum += exp(normalized_log_weights.at(i));
+  }
+
+  float division_size = normalized_sum / particles_.size();
+  float sample_point = rng_.UniformRandom(0,division_size);
+  float building_sum = 0;
+
+  for (size_t i=0; i < particles_.size(); i++){
+    building_sum += exp(normalized_log_weights.at(i));
+
+    if (building_sum > sample_point){
+      new_particles.push_back(particles_.at(i));
+      sample_point += division_size;
+    }
+  }
+
+  particles_ = new_particles;
 }
 
-// TODO by Mark
+// TODO by anyone
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float range_min,
                                   float range_max,
