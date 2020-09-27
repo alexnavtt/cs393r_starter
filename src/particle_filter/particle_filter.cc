@@ -66,7 +66,7 @@ void ParticleFilter::GetParticles(vector<Particle>* particles) const {
 void ParticleFilter::UpdateParticleLocation(float dx_odom, float dy_odom, float dtheta_odom, Particle& particle)
 {
   // Use the motion model to update each particle's location
-  // This function will probably be called (sparingly) in the ObserveOdometry callback
+  // This function will probably be called in the ObserveOdometry callback
   // You can update the particle location directly by modifying the particle variable
   // defined above since it was passed by reference (using the "&" symbol).
 
@@ -131,7 +131,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   }
 }
 
-// TODO by Alex
+// TODO by Alex: Implement d_min and d_max piecewise function
 void ParticleFilter::Update(const vector<float>& ranges,
                             float range_min,
                             float range_max,
@@ -164,34 +164,28 @@ void ParticleFilter::Update(const vector<float>& ranges,
   p_ptr->log_weight += log_error_sum;
 }
 
-// TODO by anyone
+// Done
 void ParticleFilter::Resample() {
-  // Initialize Local Variables
-  vector<Particle> new_particles;                           // temp variable to house new particles
-  vector<float> normalized_log_weights(particles_.size());  // vector of log(w/w_max) = log(w) - log(w_max)
-  float normalized_sum = 0;                                 // sum of normalized (but NOT log) weights: used for resampling
-  
-  max_log_particle_weight_ = -std::numeric_limits<float>::infinity(); // Since the range of weights is (-inf,0] we have to initialize max at -inf
-
-  // Find maximum particle weight
-  for (const auto &particle : particles_)
-    if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
+  // Initialize Local Variables (static for speed in exchange for memory)
+  static vector<Particle> new_particles(FLAGS_num_particles);             // temp variable to house new particles
+  static vector<float> normalized_log_weights(FLAGS_num_particles);       // vector of log(w/w_max) = log(w) - log(w_max)
+  static vector<float> absolute_weight_breakpoints(FLAGS_num_particles);  // vector of cumulative absolute normalized weights
+  float normalized_sum = 0;                                               // sum of normalized (but NOT log) weights: used for resampling
 
   // Normalize each of the log weights
-  for (size_t i=0; i < particles_.size(); i++){
-    normalized_log_weights.at(i) = particles_.at(i).log_weight - max_log_particle_weight_;
-    normalized_sum += exp(normalized_log_weights.at(i));
+  for (size_t i=0; i < FLAGS_num_particles; i++){
+    normalized_log_weights[i] = particles_[i].log_weight - max_log_particle_weight_;
+    normalized_sum += exp(normalized_log_weights[i]);
+    absolute_weight_breakpoints[i] = normalized_sum;
   }
 
-  float division_size = normalized_sum / particles_.size();
+  // Resample based on the absolute weights
+  float division_size = normalized_sum / FLAGS_num_particles;
   float sample_point = rng_.UniformRandom(0,division_size);
-  float building_sum = 0;
 
-  for (size_t i=0; i < particles_.size(); i++){
-    building_sum += exp(normalized_log_weights.at(i));
-
-    if (building_sum > sample_point){
-      new_particles.push_back(particles_.at(i));
+  for (size_t i=0; i < FLAGS_num_particles; i++){
+    if (absolute_weight_breakpoints[i] > sample_point){
+      new_particles.at(i) = particles_[i];
       sample_point += division_size;
     }
   }
@@ -206,7 +200,17 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_min,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
-  // Call the Update and Resample steps as necessary.
+
+  max_log_particle_weight_ = -std::numeric_limits<float>::infinity(); // Since the range of weights is (-inf,0] we have to initialize max at -inf
+
+  // Update all particle weights and find the maximum weight
+  for (auto &particle : particles_){
+    Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+    if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
+  }
+
+  // Resample (we will probably want to stagger this for efficiency)
+  Resample();
 }
 
 // TODO by Connor
@@ -217,6 +221,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // forward based on odometry.
 }
 
+// TODO by anyone
 void ParticleFilter::Initialize(const string& map_file,
                                 const Vector2f& loc,
                                 const float angle) {
@@ -225,6 +230,7 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
 }
 
+// TODO by anyone
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
                                  float* angle_ptr) const {
   Vector2f& loc = *loc_ptr;
