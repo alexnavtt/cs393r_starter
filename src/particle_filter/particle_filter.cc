@@ -181,7 +181,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
 // Done by Alex
 void ParticleFilter::Resample() {
   // Initialize Local Variables (static for speed in exchange for memory)
-  static vector<Particle> new_particles(FLAGS_num_particles);             // temp variable to house new particles
+  vector<Particle> new_particles;                                         // temp variable to house new particles
   static vector<float> normalized_log_weights(FLAGS_num_particles);       // vector of log(w/w_max) = log(w) - log(w_max)
   static vector<float> absolute_weight_breakpoints(FLAGS_num_particles);  // vector of cumulative absolute normalized weights
   float normalized_sum = 0;                                               // sum of normalized (but NOT log) weights: used for resampling
@@ -198,8 +198,8 @@ void ParticleFilter::Resample() {
   float sample_point = rng_.UniformRandom(0,division_size);
 
   for (size_t i=0; i < FLAGS_num_particles; i++){
-    if (absolute_weight_breakpoints[i] > sample_point){
-      new_particles.at(i) = particles_[i];
+    while (absolute_weight_breakpoints[i] > sample_point){
+      new_particles.push_back(particles_[i]);
       sample_point += division_size;
     }
   }
