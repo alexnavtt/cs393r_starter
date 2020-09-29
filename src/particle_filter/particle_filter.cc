@@ -149,12 +149,12 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   }
 }
 
-// Helper function to convert from Map2BaseLink, untested
+// Helper function to convert from map to base_link, untested
 Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc, const float angle){
-  Eigen::Rotation2Df R_inv(-angle); // negative of angle should be the same as transpose or inverse
-  Vector2f lidar_reading = R_inv*(point-loc);
+  Eigen::Rotation2Df R_inv(-angle); // negative of angle should be the same as transpose or inverse, right?
+  Vector2f lidar_reading = R_inv*(point-loc); // transformation to lidar frame
   Vector2f lidar_offset(0.2, 0);
-  return lidar_reading - lidar_offset;
+  return lidar_reading - lidar_offset; // transformation to base_link frame
 }
 
 
