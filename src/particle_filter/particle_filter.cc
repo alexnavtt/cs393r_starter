@@ -78,7 +78,7 @@ void ParticleFilter::UpdateParticleLocation(float dx_odom, float dy_odom, float 
          "standard deviation of 2 : %f\n", x);
 }
 
-// TODO by Mark
+// Done by Mark, untested
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             const float angle,
                                             int num_ranges,
@@ -96,38 +96,52 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
   // Note: The returned values must be set using the `scan` variable:
   scan.resize(num_ranges);
-  // Fill in the entries of scan using array writes, e.g. scan[i] = ...
-  for (size_t i = 0; i < scan.size(); ++i) {
-    scan[i] = Vector2f(0, 0);
-  }
-
-  // The line segments in the map are stored in the `map_.lines` variable. You
-  // can iterate through them as:
-  for (size_t i = 0; i < map_.lines.size(); ++i) {
-    const line2f map_line = map_.lines[i];
-    // The line2f class has helper functions that will be useful.
-    // You can create a new line segment instance as follows, for :
-    line2f my_line(1, 2, 3, 4); // Line segment from (1,2) to (3.4).
-    // Access the end points using `.p0` and `.p1` members:
+  
+  // Sweeps through angles of virtual Lidar and returns closest point
+  for (size_t i_scan = 0; i_scan < scan.size(); ++i_scan)
+  {
+    // Initialize scan, to be updated later
+    scan[i_scan] = Vector2f(0, 0);
+    // Get the visual "ray" vector for this particular scan
+    line2f ray_line(1,2,3,4); // Line segment from (1,2) to (3,4)
+    float ray_angle = angle + i_scan/num_ranges*(angle_max-angle_min) - angle_min;
+    ray_line.p0.x() = loc.x() + range_min*cos(ray_angle);
+    ray_line.p0.y() = loc.y() + range_min*sin(ray_angle);
+    ray_line.p1.x() = loc.x() + range_max*cos(ray_angle);
+    ray_line.p1.y() = loc.y() + range_max*sin(ray_angle);
     printf("P0: %f, %f P1: %f,%f\n", 
-           my_line.p0.x(),
-           my_line.p0.y(),
-           my_line.p1.x(),
-           my_line.p1.y());
-
-    // Check for intersections:
-    bool intersects = map_line.Intersects(my_line);
-    // You can also simultaneously check for intersection, and return the point
-    // of intersection:
-    Vector2f intersection_point; // Return variable
-    intersects = map_line.Intersection(my_line, &intersection_point);
-    if (intersects) {
-      printf("Intersects at %f,%f\n", 
-             intersection_point.x(),
-             intersection_point.y());
-    } else {
-      printf("No intersection\n");
+           ray_line.p0.x(),
+           ray_line.p0.y(),
+           ray_line.p1.x(),
+           ray_line.p1.y());
+    
+    // Initialize variables for next loop
+    Vector2f intersection_min;
+    intersection_min.x() = loc.x() + range_max*cos(ray_angle);
+    intersection_min.y() = loc.y() + range_max*sin(ray_angle);
+    float dist_to_intersection_min = range_max;
+    // Sweeps through lines in map to get closest intersection with ray
+    for (size_t i_line = 0; i_line < map_.lines.size(); ++i_line)
+    {
+      const line2f map_line = map_.lines[i_line];
+      Vector2f intersection_point;
+      bool intersects = map_line.Intersection(ray_line, &intersection_point);
+      // If there is an intersection, examine this point
+      if (intersects)
+      {
+        float dist_to_this_intersection = (intersection_point-loc).norm();
+        // If it's the closest point yet, record it
+        if (dist_to_this_intersection < dist_to_intersection_min)
+        {
+          dist_to_intersection_min = dist_to_this_intersection;
+          intersection_min = intersection_point;
+        }
+      }
     }
+    // Return closest point for this particular scan
+    // NOTE: I think this should be put in the base_link frame since that is
+    //       how the world is observed with the physical Lidar
+    scan[i_scan] = intersection_min;
   }
 }
 
@@ -164,7 +178,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
   p_ptr->log_weight += log_error_sum;
 }
 
-// Done
+// Done by Alex
 void ParticleFilter::Resample() {
   // Initialize Local Variables (static for speed in exchange for memory)
   static vector<Particle> new_particles(FLAGS_num_particles);             // temp variable to house new particles
