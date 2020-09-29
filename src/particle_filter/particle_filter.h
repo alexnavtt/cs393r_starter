@@ -89,6 +89,8 @@ class ParticleFilter {
                               float angle_min,
                               float angle_max,
                               std::vector<Eigen::Vector2f>* scan);
+  
+  Eigen::Vector2f Map2BaseLink(const Eigen::Vector2f& point, const Eigen::Vector2f& loc, const float angle);
 
  private:
 
