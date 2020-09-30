@@ -243,7 +243,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // forward based on odometry.
 }
 
-// TODO by anyone
+// Done by Mark, untested
 // Called by InitCallback in particle_filter_main
 void ParticleFilter::Initialize(const string& map_file,
                                 const Vector2f& loc,
@@ -251,7 +251,16 @@ void ParticleFilter::Initialize(const string& map_file,
   // The "set_pose" button on the GUI was clicked, or an initialization message
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
-  map_.Load(map_file);
+  map_.Load("maps/" + map_file + ".txt"); // from Piazza
+
+  // Make initial guesses (particles) based on a Gaussian distribution about initial placement
+  for (size_t i = 0; i < FLAGS_num_particles; i++){
+    Particle particle_init;
+    particle_init.loc.x() = rng_.Gaussian(loc.x(), 1);  // std_dev of 1m, to be tuned
+    particle_init.loc.y() = rng_.Gaussian(loc.y(), 1);  // std_dev of 1m, to be tuned
+    particle_init.angle = rng_.Gaussian(angle, M_PI/4); // std_dev of 45deg, to be tuned
+    particles_.push_back(particle_init);
+  }
 }
 
 // TODO by anyone
