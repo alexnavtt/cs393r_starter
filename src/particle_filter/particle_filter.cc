@@ -140,10 +140,23 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     }
     // Return closest point for this particular scan
     // NOTE: I think this should be put in the base_link frame since that is
-    //       how the world is observed with the physical Lidar
+    //       how the world is observed with the physical Lidar. However, I'm
+    //       leaving it in the map frame at least for now to visualize easier.
     scan[i_scan] = intersection_min;
+
+    // Optional: In base_link frame (untested):
+    // scan[i_scan] = Map2BaseLink(intersection_min, loc, angle);
   }
 }
+
+// Helper function to convert from map to base_link, untested
+Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc, const float angle){
+  Eigen::Rotation2Df R_inv(-angle); // negative of angle should be the same as transpose or inverse, right?
+  Vector2f lidar_reading = R_inv*(point-loc); // transformation to lidar frame
+  Vector2f lidar_offset(0.2, 0);
+  return lidar_reading - lidar_offset; // transformation to base_link frame
+}
+
 
 // TODO by Alex: Implement d_min and d_max piecewise function
 void ParticleFilter::Update(const vector<float>& ranges,
