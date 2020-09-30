@@ -167,9 +167,9 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
   for (size_t i = 0; i < ranges.size(); i++)
   {
-    Vector2f real_reading(p_ptr->loc.x() + ranges.at(i)*cos(laser_angle + p_ptr->angle),
-                          p_ptr->loc.y() + ranges.at(i)*sin(laser_angle + p_ptr->angle));
-    float diff_sq = (real_reading - predicted_cloud.at(i)).squaredNorm();
+    Vector2f real_reading(p_ptr->loc.x() + ranges[i]*cos(laser_angle + p_ptr->angle),
+                          p_ptr->loc.y() + ranges[i]*sin(laser_angle + p_ptr->angle));
+    float diff_sq = (real_reading - predicted_cloud[i]).squaredNorm();
     log_error_sum += -diff_sq/var_obs_;
 
     laser_angle += angle_diff;
@@ -207,7 +207,7 @@ void ParticleFilter::Resample() {
   particles_ = new_particles;
 }
 
-// TODO by anyone
+// Done by Alex
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float range_min,
                                   float range_max,
