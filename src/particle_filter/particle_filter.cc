@@ -215,6 +215,7 @@ void ParticleFilter::Resample() {
 }
 
 // TODO by anyone
+// Called by LaserCallback in particle_filter_main
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float range_min,
                                   float range_max,
@@ -243,15 +244,18 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
 }
 
 // TODO by anyone
+// Called by InitCallback in particle_filter_main
 void ParticleFilter::Initialize(const string& map_file,
                                 const Vector2f& loc,
                                 const float angle) {
   // The "set_pose" button on the GUI was clicked, or an initialization message
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
+  map_.Load(map_file);
 }
 
 // TODO by anyone
+// Called by OdometryCallback in particle_filter_main
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
                                  float* angle_ptr) const {
   Vector2f& loc = *loc_ptr;
