@@ -58,7 +58,8 @@ config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
-    odom_initialized_(false) {}
+    odom_initialized_(false),
+    var_obs_(1) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -106,7 +107,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     scan[i_scan] = Vector2f(0, 0);
     // Get the visual "ray" vector for this particular scan
     line2f ray_line(1,2,3,4); // Line segment from (1,2) to (3,4)
-    float ray_angle = angle + i_scan/num_ranges*(angle_max-angle_min) - angle_min;
+    float ray_angle = angle + 1.0*i_scan/num_ranges*(angle_max-angle_min) - angle_min;
     ray_line.p0.x() = loc.x() + range_min*cos(ray_angle);
     ray_line.p0.y() = loc.y() + range_min*sin(ray_angle);
     ray_line.p1.x() = loc.x() + range_max*cos(ray_angle);
@@ -161,9 +162,11 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             float angle_min,
                             float angle_max,
                             Particle* p_ptr) {
+  Particle& particle = *p_ptr;
+
   // Get predicted point cloud
   vector<Vector2f> predicted_cloud;
-  GetPredictedPointCloud(p_ptr->loc, p_ptr->angle,
+  GetPredictedPointCloud(particle.loc, particle.angle,
                          ranges.size(),
                          range_min, range_max,
                          angle_min, angle_max,
@@ -178,17 +181,21 @@ void ParticleFilter::Update(const vector<float>& ranges,
   {
     Vector2f real_reading(p_ptr->loc.x() + ranges[i]*cos(laser_angle + p_ptr->angle),
                           p_ptr->loc.y() + ranges[i]*sin(laser_angle + p_ptr->angle));
+
     float diff_sq = (real_reading - predicted_cloud[i]).squaredNorm();
-    log_error_sum += -diff_sq/var_obs_;
+    log_error_sum -= diff_sq/var_obs_;
 
     laser_angle += angle_diff;
   }
 
-  p_ptr->log_weight += log_error_sum;
+  particle.log_weight += log_error_sum;
 }
 
 // Done by Alex
 void ParticleFilter::Resample() {
+  // Check whether particles have been initialized
+  if (particles_.empty()) return;
+
   // Initialize Local Variables (static for speed in exchange for memory)
   vector<Particle> new_particles;                                         // temp variable to house new particles
   static vector<float> normalized_log_weights(FLAGS_num_particles);       // vector of log(w/w_max) = log(w) - log(w_max)
@@ -205,6 +212,8 @@ void ParticleFilter::Resample() {
   // Resample based on the absolute weights
   float division_size = normalized_sum / FLAGS_num_particles;
   float sample_point = rng_.UniformRandom(0,division_size);
+
+  if (division_size == 0) return;
 
   for (size_t i=0; i < FLAGS_num_particles; i++){
     while (absolute_weight_breakpoints[i] > sample_point){
@@ -234,7 +243,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // Resample (we will probably want to stagger this for efficiency)
-  // Resample();
+  Resample();
 }
 
 // TODO by Connor
@@ -262,6 +271,7 @@ void ParticleFilter::Initialize(const string& map_file,
     particle_init.loc.x() = rng_.Gaussian(loc.x(), 0.25);  // std_dev of 0.25m, to be tuned
     particle_init.loc.y() = rng_.Gaussian(loc.y(), 0.25);  // std_dev of 0.25m, to be tuned
     particle_init.angle = rng_.Gaussian(angle, M_PI/6);    // std_dev of 30deg, to be tuned
+    particle_init.log_weight = 0;
     particles_.push_back(particle_init);
   }
 }
