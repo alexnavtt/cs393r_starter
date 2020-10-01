@@ -214,12 +214,8 @@ void ParticleFilter::Resample() {
   particles_ = new_particles;
 }
 
-<<<<<<< HEAD
 // Done by Alex
-=======
-// TODO by anyone
 // Called by LaserCallback in particle_filter_main
->>>>>>> 72ce543ae553adb83ad76050729ff0c5768c0839
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float range_min,
                                   float range_max,
