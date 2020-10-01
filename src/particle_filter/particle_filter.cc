@@ -112,11 +112,6 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     ray_line.p0.y() = loc.y() + range_min*sin(ray_angle);
     ray_line.p1.x() = loc.x() + range_max*cos(ray_angle);
     ray_line.p1.y() = loc.y() + range_max*sin(ray_angle);
-    // printf("P0: %f, %f P1: %f,%f\n", 
-    //        ray_line.p0.x(),
-    //        ray_line.p0.y(),
-    //        ray_line.p1.x(),
-    //        ray_line.p1.y());
     
     // Initialize variables for next loop
     Vector2f intersection_min;
@@ -149,7 +144,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
     // Optional: If you just want the range
     // scan[i_scan] = dist_to_intersection_min;
-
+    
     // Optional: In base_link frame (untested):
     // scan[i_scan] = Map2BaseLink(intersection_min, loc, angle);
   }
@@ -254,7 +249,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // forward based on odometry.
 }
 
-// Done by Mark, untested
+// Done by Mark
 // Called by InitCallback in particle_filter_main
 void ParticleFilter::Initialize(const string& map_file,
                                 const Vector2f& loc,
@@ -264,19 +259,20 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
   particles_.clear(); // Need to get rid of particles from previous inits
   map_.Load("maps/" + map_file + ".txt"); // from Piazza
+  cout << "Initialized " << map_file << " with " << map_.lines.size() << " lines!" << endl;
 
   // Make initial guesses (particles) based on a Gaussian distribution about initial placement
   for (size_t i = 0; i < FLAGS_num_particles; i++){
     Particle particle_init;
     particle_init.loc.x() = rng_.Gaussian(loc.x(), 0.25);  // std_dev of 0.25m, to be tuned
     particle_init.loc.y() = rng_.Gaussian(loc.y(), 0.25);  // std_dev of 0.25m, to be tuned
-    particle_init.angle = rng_.Gaussian(angle, M_PI/6);    // std_dev of 30deg, to be tuned
+    particle_init.angle   = rng_.Gaussian(angle, M_PI/6);  // std_dev of 30deg, to be tuned
     particle_init.log_weight = 0;
     particles_.push_back(particle_init);
   }
 }
 
-// TODO by anyone
+// Done by Mark, untested
 // Called by OdometryCallback in particle_filter_main
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
                                  float* angle_ptr) const {
@@ -284,9 +280,20 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   float& angle = *angle_ptr;
   // Compute the best estimate of the robot's location based on the current set
   // of particles. The computed values must be set to the `loc` and `angle`
-  // variables to return them. Modify the following assignments:
-  loc = Vector2f(0, 0);
-  angle = 0;
+  // variables to return them.
+
+  // Just do weighted average of loc and angle
+  Vector2f weighted_loc_sum(0.0, 0.0);
+  float weighted_angle_sum = 0.0;
+  float weight_sum = 0.0;
+  for (auto &particle : particles_)
+  {
+    weighted_loc_sum += particle.loc * particle.log_weight;
+    weighted_angle_sum += particle.angle * particle.log_weight;
+    weight_sum += particle.log_weight;
+  }
+  loc = weighted_loc_sum / weight_sum;
+  angle = weighted_angle_sum / weight_sum;
 }
 
 // Helper function to convert from map to base_link, untested

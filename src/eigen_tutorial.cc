@@ -41,7 +41,7 @@ void DemoBasics() {
 
   cout << "Print the vector to stdout:\n" << v1 << endl;
 
-  cout << "test: " << std::abs(-1) << endl;
+  cout << "Can you just multiply a vector?\n" << v1*2 << endl;
 
   cout << "Initialize a 2x2 matrix m1." << endl;
   Matrix2f m1;
