@@ -72,6 +72,9 @@ void ParticleFilter::UpdateParticleLocation(float dx_odom, float dy_odom, float 
   // This function will probably be called in the ObserveOdometry callback
   // You can update the particle location directly by modifying the particle variable
   // defined above since it was passed by reference (using the "&" symbol).
+  // this particle passed by reference comes from ObserveLaser for loop
+  // and is modified by Update function similar to how it is being modified here
+  // but this occurs at every timestep
 
   // You will need to use the Gaussian random number generator provided. For
   // example, to generate a random number from a Gaussian with mean 0, and
@@ -241,12 +244,29 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   Resample();
 }
 
-// TODO by Connor
+// InProgress by Connor
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
                                      const float odom_angle) {
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
+
+  prev_odom_loc_ = odom_loc;
+  prev_odom_angle_ = odom_angle;
+  const Vector2f& odom_loc_ = &particle.loc;
+  const float odom_angle_ = &particle.angle;
+  if !initialized:
+    //get most recent particle
+    //i know this isn't correct use of pointer
+    //and not even really sure which particle i am getting,
+    //is it initialized or am i getting this afte resample?
+    prev_odom_loc_ = &particle.loc
+    prev_odom_angle_ = &particle.angle
+  odom_x_diff = (prev_odom_loc[0]_ - odom_loc[0])
+  odom_y_diff = (prev_odom_loc[1]_ - odom_loc[1])
+  angle_diff = std::abs(prev_odom_angle_ - odom_angle_)
+  UpdateParticleLocation(odom_x_diff,odom_y_diff,angle_diff,&particle)
+
 }
 
 // Done by Mark
