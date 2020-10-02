@@ -76,13 +76,14 @@ void ParticleFilter::UpdateParticleLocation(float dx_odom, float dy_odom, float 
   // and is modified by Update function similar to how it is being modified here
   // but this occurs at every timestep
 
-  odom_trans_diff = (dx_odom + dy_odom).norm();
+  // odom_trans_diff = (dx_odom + dy_odom).norm();
 
-  eps_x, ~ N(0,k1*dx_odom + k2*dtheta_odom);
-  eps_y ~ N(0,k1*dy_odom + k2*dtheta_odom);
-  eps_angle ~ N(0,k3*odom_trans_diff + k4*dtheta_odom);
-  &particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
-  &particle.angle += dtheta_odom + eps_angle;
+  // eps_x, ~ N(0,k1*dx_odom + k2*dtheta_odom);
+  // eps_y ~ N(0,k1*dy_odom + k2*dtheta_odom);
+  // eps_angle ~ N(0,k3*odom_trans_diff + k4*dtheta_odom);
+  // &particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
+  // &particle.angle += dtheta_odom + eps_angle;
+
   //need to figure out how I convert below into a Normal distribution that I can use with update
 
 
@@ -261,21 +262,21 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
 
-  prev_odom_loc_ = odom_loc;
-  prev_odom_angle_ = odom_angle;
-  const Vector2f& odom_loc_ = &particle.loc;
-  const float odom_angle_ = &particle.angle;
-  if !initialized:
-    //get most recent particle
-    //i know this isn't correct use of pointer
-    //and not even really sure which particle i am getting,
-    //is it initialized or am i getting this afte resample?
-    prev_odom_loc_ = &particle.loc
-    prev_odom_angle_ = &particle.angle
-  odom_x_diff = (prev_odom_loc[0]_ - odom_loc[0])
-  odom_y_diff = (prev_odom_loc[1]_ - odom_loc[1])
-  angle_diff = std::abs(prev_odom_angle_ - odom_angle_)
-  UpdateParticleLocation(odom_x_diff,odom_y_diff,angle_diff,&particle)
+  // prev_odom_loc_ = odom_loc;
+  // prev_odom_angle_ = odom_angle;
+  // const Vector2f& odom_loc_ = &particle.loc;
+  // const float odom_angle_ = &particle.angle;
+  // if !initialized:
+  //   //get most recent particle
+  //   //i know this isn't correct use of pointer
+  //   //and not even really sure which particle i am getting,
+  //   //is it initialized or am i getting this afte resample?
+  //   prev_odom_loc_ = &particle.loc
+  //   prev_odom_angle_ = &particle.angle
+  // odom_x_diff = (prev_odom_loc[0]_ - odom_loc[0])
+  // odom_y_diff = (prev_odom_loc[1]_ - odom_loc[1])
+  // angle_diff = std::abs(prev_odom_angle_ - odom_angle_)
+  // UpdateParticleLocation(odom_x_diff,odom_y_diff,angle_diff,&particle)
 
 }
 
