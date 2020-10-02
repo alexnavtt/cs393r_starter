@@ -107,7 +107,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     scan[i_scan] = Vector2f(0, 0);
     // Get the visual "ray" vector for this particular scan
     line2f ray_line(1,2,3,4); // Line segment from (1,2) to (3,4)
-    float ray_angle = angle + 1.0*i_scan/num_ranges*(angle_max-angle_min) - angle_min;
+    float ray_angle = angle + 1.0*i_scan/num_ranges*(angle_max-angle_min) + angle_min;
     ray_line.p0.x() = loc.x() + range_min*cos(ray_angle);
     ray_line.p0.y() = loc.y() + range_min*sin(ray_angle);
     ray_line.p1.x() = loc.x() + range_max*cos(ray_angle);
