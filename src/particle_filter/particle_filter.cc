@@ -76,6 +76,16 @@ void ParticleFilter::UpdateParticleLocation(float dx_odom, float dy_odom, float 
   // and is modified by Update function similar to how it is being modified here
   // but this occurs at every timestep
 
+  odom_trans_diff = (dx_odom + dy_odom).norm();
+
+  eps_x, ~ N(0,k1*dx_odom + k2*dtheta_odom);
+  eps_y ~ N(0,k1*dy_odom + k2*dtheta_odom);
+  eps_angle ~ N(0,k3*odom_trans_diff + k4*dtheta_odom);
+  &particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
+  &particle.angle += dtheta_odom + eps_angle;
+  //need to figure out how I convert below into a Normal distribution that I can use with update
+
+
   // You will need to use the Gaussian random number generator provided. For
   // example, to generate a random number from a Gaussian with mean 0, and
   // standard deviation 2:
