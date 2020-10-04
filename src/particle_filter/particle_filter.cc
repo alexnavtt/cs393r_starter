@@ -59,7 +59,11 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    var_obs_(1) {}
+    var_obs_(1),
+    d_short_(0.5),
+    d_long_(0.2),
+    d_min_(-2),
+    d_max_(2) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -188,11 +192,20 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
   for (size_t i = 0; i < ranges.size(); i++)
   {
-    Vector2f real_reading(p_ptr->loc.x() + ranges[i]*cos(laser_angle + p_ptr->angle),
-                          p_ptr->loc.y() + ranges[i]*sin(laser_angle + p_ptr->angle));
 
-    float diff_sq = (real_reading - predicted_cloud[i]).squaredNorm();
-    log_error_sum -= diff_sq/var_obs_;
+    Vector2f predicted_point = Map2BaseLink(predicted_cloud[i], particle.loc, particle.angle);
+    float predicted_range = (predicted_point - Vector2f(0.2, 0)).norm();
+
+    // New implementation of piecewise function of d_short and d_long
+    float range_diff = ranges[i] - predicted_range;
+    // if (range_diff < d_min_ or range_diff > d_max_){
+    //   particle.log_weight -= 1e10;  // corresponds to a weight of 0
+    //   return;
+    // }
+    range_diff = std::min(range_diff, d_long_);
+    range_diff = std::max(range_diff,-d_short_);
+
+    log_error_sum += -Sq(range_diff) / var_obs_;
 
     laser_angle += angle_diff;
   }

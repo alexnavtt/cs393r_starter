@@ -110,6 +110,10 @@ class ParticleFilter {
 
   // Observation Likelihood Model
   float var_obs_;   // variance of the gaussian portion of the model
+  float d_short_;
+  float d_long_;
+  float d_min_;
+  float d_max_;
 
   // Resampling variables
   float max_log_particle_weight_;
