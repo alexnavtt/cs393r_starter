@@ -63,7 +63,9 @@ ParticleFilter::ParticleFilter() :
     d_short_(0.5),
     d_long_(0.2),
     d_min_(-2),
-    d_max_(2) {}
+    d_max_(2),
+    last_resample_loc_(0,0),
+    resample_threshold_(0.2) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -142,7 +144,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   }
 }
 
-// TODO by Alex: Implement d_min and d_max piecewise function
+// Done by Alex
 void ParticleFilter::Update(const vector<float>& ranges,
                             float range_min,
                             float range_max,
@@ -239,7 +241,10 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // Resample (we will probably want to stagger this for efficiency)
-  Resample();
+  if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_){
+    Resample();
+    last_resample_loc_ = prev_odom_loc_;
+  }
 }
 
 // InProgress by Connor
@@ -253,18 +258,9 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-  prev_odom_loc_ = odom_loc;
-  prev_odom_angle_ = odom_angle;
+  if (particles_.empty()) return;
+
   for (auto &particle : particles_){
-    //not sure ho
-    if (particles_.empty()) 
-    {
-      //get most recent particle
-      //i know this isn't correct use of pointer
-      //and not even really sure which particle i am getting,
-      //is it initialized or am i getting this afte resample?
-      return;
-    }
   //   //get current pose (location and angle) of particle (pre-noise applied to it)
   //   //no idea what this & thingee is doing. i hate &s
     const Vector2f odom_trans_diff = (odom_loc - prev_odom_loc_);
@@ -272,9 +268,12 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
     //apply noise to pose of particle
     UpdateParticleLocation(odom_trans_diff,angle_diff, &particle);
   }
+
+  prev_odom_loc_ = odom_loc;
+  prev_odom_angle_ = odom_angle;
 }
 
-// TODO by Connor
+// Done by Connor
 void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dtheta_odom, Particle* p_ptr)
 {
   // Use the motion model to update each particle's location
@@ -302,6 +301,8 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff.norm() + k4*dtheta_odom);
   particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
   particle.angle += dtheta_odom + eps_angle;
+
+  cout << particle.loc << endl;
 
   // // STARTER CODE that we can delete later on
   // // You will need to use the Gaussian random number generator provided. For
@@ -351,9 +352,12 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   float weight_sum = 0.0;
   for (auto &particle : particles_)
   {
-    weighted_loc_sum += particle.loc * particle.log_weight;
-    weighted_angle_sum += particle.angle * particle.log_weight;
-    weight_sum += particle.log_weight;
+    // Convert from log weight to normalized weight
+    float normalized_log_weight = particle.log_weight - max_log_particle_weight_;
+    float normalized_weight = exp(normalized_log_weight);
+    weighted_loc_sum += particle.loc * normalized_weight;
+    weighted_angle_sum += particle.angle * normalized_weight;
+    weight_sum += normalized_weight;
   }
   loc = weighted_loc_sum / weight_sum;
   angle = weighted_angle_sum / weight_sum;

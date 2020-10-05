@@ -117,6 +117,8 @@ class ParticleFilter {
 
   // Resampling variables
   float max_log_particle_weight_;
+  Eigen::Vector2f last_resample_loc_;
+  const float resample_threshold_;
 };
 }  // namespace slam
 
