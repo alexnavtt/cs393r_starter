@@ -67,7 +67,7 @@ class ParticleFilter {
   void GetLocation(Eigen::Vector2f* loc, float* angle) const;
 
   // Update a particle's location given current and last odom
-  void UpdateParticleLocation(float dx_odom, float dy_odom, float dtheta_odom, Particle &particle);
+  void UpdateParticleLocation(Eigen::Vector2f odom_trans_diff, float dtheta_odom, Particle* p_ptr);
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,
