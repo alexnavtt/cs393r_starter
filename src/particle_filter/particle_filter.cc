@@ -80,6 +80,12 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // and is modified by Update function similar to how it is being modified here
   // but this occurs at every timestep
 
+  //noise constants to tune
+  float k1 = 0.05;
+  float k2 = 0.025;
+  float k3 = 0.01;
+  float k4 = 0.05;
+  
   Particle& particle = *p_ptr;
 
   //should the mean b
