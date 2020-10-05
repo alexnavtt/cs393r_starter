@@ -267,10 +267,8 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
     }
   //   //get current pose (location and angle) of particle (pre-noise applied to it)
   //   //no idea what this & thingee is doing. i hate &s
-    const Vector2f& odom_loc_ = particle.loc;
-    const float odom_angle_ = particle.angle;
-    const Vector2f& odom_trans_diff = (odom_loc_ - prev_odom_loc_);
-    const float angle_diff = std::abs(odom_angle_ - prev_odom_angle_);
+    const Vector2f odom_trans_diff = (odom_loc - prev_odom_loc_);
+    const float angle_diff = std::abs(odom_angle - prev_odom_angle_);
     //apply noise to pose of particle
     UpdateParticleLocation(odom_trans_diff,angle_diff, &particle);
   }
