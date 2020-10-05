@@ -253,28 +253,27 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-  // prev_odom_loc_ = odom_loc;
-  // prev_odom_angle_ = odom_angle;
-  // for (auto &particle : particles_){
-  //   //not sure ho
-  //   if (particles_.empty()) 
-  //   {
-  //     //get most recent particle
-  //     //i know this isn't correct use of pointer
-  //     //and not even really sure which particle i am getting,
-  //     //is it initialized or am i getting this afte resample?
-  //     prev_odom_loc_ = &particle.loc;
-  //     prev_odom_angle_ = &particle.angle
-  //   }
+  prev_odom_loc_ = odom_loc;
+  prev_odom_angle_ = odom_angle;
+  for (auto &particle : particles_){
+    //not sure ho
+    if (particles_.empty()) 
+    {
+      //get most recent particle
+      //i know this isn't correct use of pointer
+      //and not even really sure which particle i am getting,
+      //is it initialized or am i getting this afte resample?
+      return;
+    }
   //   //get current pose (location and angle) of particle (pre-noise applied to it)
   //   //no idea what this & thingee is doing. i hate &s
-  //   const Vector2f& odom_loc_ = &particle.loc;
-  //   const float odom_angle_ = &particle.angle;
-  //   const Vector2f& odom_trans_diff = (odom_loc_ - prev_odom_loc_).norm();
-  //   const float angle_diff = std::abs(odom_angle_ - prev_odom_angle_);
-  //   //apply noise to pose of particle
-  //   UpdateParticleLocation(odom_trans_diff,angle_diff, &particle);
-  // }
+    const Vector2f& odom_loc_ = particle.loc;
+    const float odom_angle_ = particle.angle;
+    const Vector2f& odom_trans_diff = (odom_loc_ - prev_odom_loc_);
+    const float angle_diff = std::abs(odom_angle_ - prev_odom_angle_);
+    //apply noise to pose of particle
+    UpdateParticleLocation(odom_trans_diff,angle_diff, &particle);
+  }
 }
 
 // TODO by Connor
@@ -288,22 +287,23 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // and is modified by Update function similar to how it is being modified here
   // but this occurs at every timestep
 
-  //noise constants to tune
-  // float k1 = 0.05;
-  // float k2 = 0.025;
-  // float k3 = 0.01;
-  // float k4 = 0.05;
+  // noise constants to tune
+  //TODO give these names rot-translation stuff
+  float k1 = 0.05;
+  float k2 = 0.025;
+  float k3 = 0.01;
+  float k4 = 0.05;
   
-  // Particle& particle = *p_ptr;
+  Particle& particle = *p_ptr;
 
-  // //should the mean b
-  // //is this how it should be, the meant is the same but the standard deviation, sigma, changes based on k constants
-  // float eps_x = rng_.Gaussian(0.0,k1*odom_trans_diff + k2*dtheta_odom);
-  // // future improvements wll use different constants for x and y to account for difference in slipping likelihood
-  // float eps_y = rng_.Gaussian(0.0,k1*odom_trans_diff + k2*dtheta_odom);
-  // float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff + k4*dtheta_odom);
-  // particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
-  // particle.angle += dtheta_odom + eps_angle;
+  //should the mean b
+  //is this how it should be, the meant is the same but the standard deviation, sigma, changes based on k constants
+  float eps_x = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*dtheta_odom);
+  // future improvements wll use different constants for x and y to account for difference in slipping likelihood
+  float eps_y = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*dtheta_odom);
+  float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff.norm() + k4*dtheta_odom);
+  particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
+  particle.angle += dtheta_odom + eps_angle;
 
   // // STARTER CODE that we can delete later on
   // // You will need to use the Gaussian random number generator provided. For
