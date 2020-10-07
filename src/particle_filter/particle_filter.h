@@ -92,7 +92,7 @@ class ParticleFilter {
                               std::vector<Eigen::Vector2f>* scan);
   
   Eigen::Vector2f Map2BaseLink(const Eigen::Vector2f& point, const Eigen::Vector2f& loc, const float angle);
-  Eigen::Vector2f BaseLink2Map(const Eigen::Vector2f odom_vec, const float init_angle);
+  Eigen::Vector2f OdomVec2Map(const Eigen::Vector2f odom_vec);
 
  private:
 
@@ -109,6 +109,8 @@ class ParticleFilter {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+  Eigen::Vector2f init_odom_loc_;
+  float init_odom_angle_;
 
   // Observation Likelihood Model
   float var_obs_;   // variance of the gaussian portion of the model

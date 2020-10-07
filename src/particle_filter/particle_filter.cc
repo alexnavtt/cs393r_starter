@@ -153,6 +153,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             Particle* p_ptr) {
   Particle& particle = *p_ptr;
 
+  if (not odom_initialized_) return;
+
   // Get predicted point cloud
   vector<Vector2f> predicted_cloud;
   GetPredictedPointCloud(particle.loc, particle.angle,
@@ -210,7 +212,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
 // Done by Alex
 void ParticleFilter::Resample() {
   // Check whether particles have been initialized
-  if (particles_.empty()) return;
+  if (particles_.empty() or not odom_initialized_) return;
 
   // Initialize Local Variables (static for speed in exchange for memory)
   vector<Particle> new_particles;                                         // temp variable to house new particles
@@ -282,18 +284,22 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // forward based on odometry.
   if (particles_.empty()) return;
 
+  const Vector2f odom_trans_diff = OdomVec2Map(odom_loc - prev_odom_loc_);
+  const float angle_diff = (odom_angle - prev_odom_angle_); // TODO Account for angle discontinuity moving from -PI to PI
+
   for (auto &particle : particles_){
-  //   //get current pose (location and angle) of particle (pre-noise applied to it)
-  //   //no idea what this & thingee is doing. i hate &s
-    const Vector2f odom_trans_diff = (odom_loc - prev_odom_loc_);
-    // TODO Account for angle discontinuity moving from -PI to PI
-    const float angle_diff = (odom_angle - prev_odom_angle_);
     //apply noise to pose of particle
     UpdateParticleLocation(odom_trans_diff,angle_diff, &particle);
   }
 
   prev_odom_loc_ = odom_loc;
   prev_odom_angle_ = odom_angle;
+
+  if (not odom_initialized_){
+    odom_initialized_ = true;
+    init_odom_loc_ = odom_loc;
+    init_odom_angle_ = odom_angle;
+  }
 }
 
 // Done by Connor
@@ -323,7 +329,7 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // future improvements wll use different constants for x and y to account for difference in slipping likelihood
   float eps_y = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*abs_angle_diff);
   float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff.norm() + k4*abs_angle_diff);
-  particle.loc += BaseLink2Map(odom_trans_diff, particle.angle) + Vector2f(eps_x,eps_y);
+  particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
   particle.angle += dtheta_odom + eps_angle;
 
   // cout << particle.loc << endl;
@@ -395,8 +401,8 @@ Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc
   return lidar_reading - lidar_offset; // transformation to base_link frame
 }
 
-Vector2f ParticleFilter::BaseLink2Map(const Vector2f odom_vec, const float init_angle){
-  Eigen::Rotation2Df R_MB(init_angle);
+Vector2f ParticleFilter::OdomVec2Map(const Vector2f odom_vec){
+  Eigen::Rotation2Df R_MB(-init_odom_angle_);
   return R_MB * odom_vec;
 }
 
