@@ -323,7 +323,7 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // future improvements wll use different constants for x and y to account for difference in slipping likelihood
   float eps_y = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*abs_angle_diff);
   float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff.norm() + k4*abs_angle_diff);
-  particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
+  particle.loc += BaseLink2Map(odom_trans_diff, particle.angle) + Vector2f(eps_x,eps_y);
   particle.angle += dtheta_odom + eps_angle;
 
   // cout << particle.loc << endl;
@@ -393,6 +393,11 @@ Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc
   Vector2f lidar_reading = R_inv*(point-loc); // transformation to lidar frame
   Vector2f lidar_offset(0.2, 0);
   return lidar_reading - lidar_offset; // transformation to base_link frame
+}
+
+Vector2f ParticleFilter::BaseLink2Map(const Vector2f odom_vec, const float init_angle){
+  Eigen::Rotation2Df R_MB(init_angle);
+  return R_MB * odom_vec;
 }
 
 }  // namespace particle_filter
