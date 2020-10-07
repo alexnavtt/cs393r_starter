@@ -166,14 +166,32 @@ void ParticleFilter::Update(const vector<float>& ranges,
   float laser_angle = angle_min;
   float angle_diff = (angle_max - angle_min)/ranges.size();
 
+  //debug
+  int counter = 0;
+  float range_diff_sum = 0;
+
   for (size_t i = 0; i < ranges.size(); i++)
   {
 
-    Vector2f predicted_point = Map2BaseLink(predicted_cloud[i], particle.loc, particle.angle);
-    float predicted_range = (predicted_point - Vector2f(0.2, 0)).norm();
+    // Vector2f predicted_point1 = Map2BaseLink(predicted_cloud[i], particle.loc, particle.angle);
+    Vector2f predicted_point = predicted_cloud[i];
+    Vector2f particle_lidar_loc = particle.loc;
+    particle_lidar_loc.x() += 0.2*cos(particle.angle);
+    particle_lidar_loc.y() += 0.2*sin(particle.angle);
+    // float predicted_range1 = (predicted_point1 - Vector2f(0.2, 0)).norm();
+    float predicted_range = (predicted_point-particle_lidar_loc).norm();
 
     // New implementation of piecewise function of d_short and d_long
     float range_diff = ranges[i] - predicted_range;
+
+    counter++;
+    range_diff_sum += range_diff;
+    if (counter%100 == 0){
+      float range_diff_avg = range_diff_sum / 100;
+      cout << "average range diff of pts " << counter-100 << " to " << counter << ": " << range_diff_avg << endl;
+      range_diff_sum = 0;
+    }
+
     // if (range_diff < d_min_ or range_diff > d_max_){
     //   particle.log_weight -= 1e10;  // corresponds to a weight of 0
     //   return;
@@ -185,7 +203,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
     laser_angle += angle_diff;
   }
-
+  // cout << range_diff_sum << endl;
   particle.log_weight += log_error_sum;
 }
 
@@ -302,7 +320,7 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
   particle.angle += dtheta_odom + eps_angle;
 
-  cout << particle.loc << endl;
+  // cout << particle.loc << endl;
 
   // // STARTER CODE that we can delete later on
   // // You will need to use the Gaussian random number generator provided. For
