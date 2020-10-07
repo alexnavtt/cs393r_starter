@@ -65,10 +65,7 @@ ParticleFilter::ParticleFilter() :
     d_min_(-2),
     d_max_(2),
     last_resample_loc_(0,0),
-    resample_threshold_(0.2) 
-{
-  last_resample_time_ = ros::Time::now();
-}
+    resample_threshold_(0.2) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
