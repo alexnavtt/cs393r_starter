@@ -65,7 +65,10 @@ ParticleFilter::ParticleFilter() :
     d_min_(-2),
     d_max_(2),
     last_resample_loc_(0,0),
-    resample_threshold_(0.2) {}
+    resample_threshold_(0.2) 
+{
+  last_resample_time_ = ros::Time::now();
+}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -241,9 +244,10 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // Resample (we will probably want to stagger this for efficiency)
-  if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_){
+  if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_ or (ros::Time::now() - last_resample_time_).toSec() > 1.0){
     Resample();
     last_resample_loc_ = prev_odom_loc_;
+    last_resample_time_ = ros::Time::now();
   }
 }
 
@@ -302,7 +306,7 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
   particle.angle += dtheta_odom + eps_angle;
 
-  cout << particle.loc << endl;
+  // cout << particle.loc << endl;
 
   // // STARTER CODE that we can delete later on
   // // You will need to use the Gaussian random number generator provided. For

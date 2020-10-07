@@ -27,6 +27,7 @@
 #include "shared/math/line2d.h"
 #include "shared/util/random.h"
 #include "vector_map/vector_map.h"
+#include "ros/ros.h"
 
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
@@ -119,6 +120,7 @@ class ParticleFilter {
   float max_log_particle_weight_;
   Eigen::Vector2f last_resample_loc_;
   const float resample_threshold_;
+  ros::Time last_resample_time_;
 };
 }  // namespace slam
 
