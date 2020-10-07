@@ -167,11 +167,11 @@ void ParticleFilter::Update(const vector<float>& ranges,
   float log_error_sum = 0;
   float laser_angle = angle_min;
   float angle_diff = (angle_max - angle_min)/ranges.size();
-
+/*
   //debug
   int counter = 0;
   float range_diff_sum = 0;
-
+*/
   for (size_t i = 0; i < predicted_cloud.size(); i++)
   {
 
@@ -185,7 +185,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
     // New implementation of piecewise function of d_short and d_long
     float range_diff = ranges[i] - predicted_range;
-
+/*
     counter++;
     range_diff_sum += range_diff;
     if (counter%100 == 0){
@@ -193,7 +193,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
       cout << "average range diff of pts " << counter-100 << " to " << counter << ": " << range_diff_avg << endl;
       range_diff_sum = 0;
     }
-
+*/
     // if (range_diff < d_min_ or range_diff > d_max_){
     //   particle.log_weight -= 1e10;  // corresponds to a weight of 0
     //   return;
@@ -224,7 +224,7 @@ void ParticleFilter::Resample() {
   for (size_t i=0; i < FLAGS_num_particles; i++){
    // normalized_log_weights[i] = particles_[i].log_weight - max_log_particle_weight_;
     particles_[i].log_weight -= max_log_particle_weight_;
-    cout << "Particle Weight: " << exp(particles_[i].log_weight) << endl;
+  //  cout << "Particle Weight: " << exp(particles_[i].log_weight) << endl;
    // normalized_sum += exp(normalized_log_weights[i]);
     normalized_sum += exp(particles_[i].log_weight);
     absolute_weight_breakpoints[i] = normalized_sum;
@@ -284,6 +284,10 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // forward based on odometry.
   if (particles_.empty()) return;
 
+  if (not odom_initialized_){
+    odom_initialized_ = true;
+  }
+
   const Vector2f odom_trans_diff = OdomVec2Map(odom_loc - prev_odom_loc_);
   const float angle_diff = (odom_angle - prev_odom_angle_); // TODO Account for angle discontinuity moving from -PI to PI
 
@@ -295,11 +299,6 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   prev_odom_loc_ = odom_loc;
   prev_odom_angle_ = odom_angle;
 
-  if (not odom_initialized_){
-    odom_initialized_ = true;
-    init_odom_loc_ = odom_loc;
-    init_odom_angle_ = odom_angle;
-  }
 }
 
 // Done by Connor
@@ -315,10 +314,10 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
 
   // noise constants to tune
   //TODO give these names rot-translation stuff
-  float k1 = 0.05;
-  float k2 = 0.025;
-  float k3 = 0.01;
-  float k4 = 0.05;
+  float k1 = 0.1; // 0.05
+  float k2 = 0.1; // 0.025
+  float k3 = 0.1; // 0.01
+  float k4 = 0.1; // 0.05
   
   Particle& particle = *p_ptr;
   const float abs_angle_diff = abs(dtheta_odom);
@@ -354,6 +353,11 @@ void ParticleFilter::Initialize(const string& map_file,
   particles_.clear(); // Need to get rid of particles from previous inits
   map_.Load("maps/" + map_file + ".txt"); // from Piazza
   cout << "Initialized " << map_file << " with " << map_.lines.size() << " lines!" << endl;
+
+  if(odom_initialized_){
+    init_odom_loc_ = prev_odom_loc_;
+    init_odom_angle_ = prev_odom_angle_ - angle;
+  }
 
   // Make initial guesses (particles) based on a Gaussian distribution about initial placement
   for (size_t i = 0; i < FLAGS_num_particles; i++){
@@ -402,7 +406,7 @@ Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc
 }
 
 Vector2f ParticleFilter::OdomVec2Map(const Vector2f odom_vec){
-  Eigen::Rotation2Df R_MB(-init_odom_angle_);
+  Eigen::Rotation2Df R_MB(init_odom_angle_);
   return R_MB * odom_vec;
 }
 
