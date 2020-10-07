@@ -259,9 +259,10 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // Resample (we will probably want to stagger this for efficiency)
-  if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_){
+  if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_ or (ros::Time::now() - last_resample_time_).toSec() > 1.0){
     Resample();
     last_resample_loc_ = prev_odom_loc_;
+    last_resample_time_ = ros::Time::now();
   }
 }
 
