@@ -60,8 +60,8 @@ ParticleFilter::ParticleFilter() :
     prev_odom_angle_(0),
     odom_initialized_(false),
     var_obs_(1),
-    d_short_(0.5),
-    d_long_(0.2),
+    d_short_(0.1),
+    d_long_(0.3),
     d_min_(-2),
     d_max_(2),
     last_resample_loc_(0,0),
@@ -95,7 +95,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   lidar_loc.y() += 0.2*sin(angle);
   
   // Sweeps through angles of virtual Lidar and returns closest point
-  for (size_t i_scan = 0; i_scan < scan.size(); ++i_scan)
+  for (size_t i_scan = 0; i_scan < scan.size(); i_scan += 10)
   {
     // Initialize scan, to be updated later
     scan[i_scan] = Vector2f(0, 0);
@@ -166,14 +166,14 @@ void ParticleFilter::Update(const vector<float>& ranges,
   float laser_angle = angle_min;
   float angle_diff = (angle_max - angle_min)/ranges.size();
 
-  for (size_t i = 0; i < ranges.size(); i++)
+  for (size_t i = 0; i < predicted_cloud.size(); i++)
   {
 
     Vector2f predicted_point = Map2BaseLink(predicted_cloud[i], particle.loc, particle.angle);
     float predicted_range = (predicted_point - Vector2f(0.2, 0)).norm();
 
     // New implementation of piecewise function of d_short and d_long
-    float range_diff = ranges[i] - predicted_range;
+    float range_diff = ranges[i/10] - predicted_range;
     // if (range_diff < d_min_ or range_diff > d_max_){
     //   particle.log_weight -= 1e10;  // corresponds to a weight of 0
     //   return;
@@ -196,14 +196,17 @@ void ParticleFilter::Resample() {
 
   // Initialize Local Variables (static for speed in exchange for memory)
   vector<Particle> new_particles;                                         // temp variable to house new particles
-  static vector<float> normalized_log_weights(FLAGS_num_particles);       // vector of log(w/w_max) = log(w) - log(w_max)
+ // static vector<float> normalized_log_weights(FLAGS_num_particles);       // vector of log(w/w_max) = log(w) - log(w_max)
   static vector<float> absolute_weight_breakpoints(FLAGS_num_particles);  // vector of cumulative absolute normalized weights
   float normalized_sum = 0;                                               // sum of normalized (but NOT log) weights: used for resampling
 
   // Normalize each of the log weights
   for (size_t i=0; i < FLAGS_num_particles; i++){
-    normalized_log_weights[i] = particles_[i].log_weight - max_log_particle_weight_;
-    normalized_sum += exp(normalized_log_weights[i]);
+   // normalized_log_weights[i] = particles_[i].log_weight - max_log_particle_weight_;
+    particles_[i].log_weight -= max_log_particle_weight_;
+    cout << "Particle Weight: " << exp(particles_[i].log_weight) << endl;
+   // normalized_sum += exp(normalized_log_weights[i]);
+    normalized_sum += exp(particles_[i].log_weight);
     absolute_weight_breakpoints[i] = normalized_sum;
   }
 
