@@ -95,7 +95,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   lidar_loc.y() += 0.2*sin(angle);
   
   // Sweeps through angles of virtual Lidar and returns closest point
-  for (size_t i_scan = 0; i_scan < scan.size(); i_scan += 10)
+  for (size_t i_scan = 0; i_scan < scan.size(); i_scan++)
   {
     // Initialize scan, to be updated later
     scan[i_scan] = Vector2f(0, 0);
@@ -182,7 +182,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
     float predicted_range = (predicted_point-particle_lidar_loc).norm();
 
     // New implementation of piecewise function of d_short and d_long
-    float range_diff = ranges[i/10] - predicted_range;
+    float range_diff = ranges[i] - predicted_range;
 
     counter++;
     range_diff_sum += range_diff;
@@ -286,7 +286,8 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   //   //get current pose (location and angle) of particle (pre-noise applied to it)
   //   //no idea what this & thingee is doing. i hate &s
     const Vector2f odom_trans_diff = (odom_loc - prev_odom_loc_);
-    const float angle_diff = std::abs(odom_angle - prev_odom_angle_);
+    // TODO Account for angle discontinuity moving from -PI to PI
+    const float angle_diff = (odom_angle - prev_odom_angle_);
     //apply noise to pose of particle
     UpdateParticleLocation(odom_trans_diff,angle_diff, &particle);
   }
@@ -314,13 +315,14 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   float k4 = 0.05;
   
   Particle& particle = *p_ptr;
+  const float abs_angle_diff = abs(dtheta_odom);
 
   //should the mean b
   //is this how it should be, the meant is the same but the standard deviation, sigma, changes based on k constants
-  float eps_x = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*dtheta_odom);
+  float eps_x = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*abs_angle_diff);
   // future improvements wll use different constants for x and y to account for difference in slipping likelihood
-  float eps_y = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*dtheta_odom);
-  float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff.norm() + k4*dtheta_odom);
+  float eps_y = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*abs_angle_diff);
+  float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff.norm() + k4*abs_angle_diff);
   particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
   particle.angle += dtheta_odom + eps_angle;
 
