@@ -88,7 +88,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   // expected observations, to be used for the update step.
 
   // Note: The returned values must be set using the `scan` variable:
-  scan.resize(num_ranges);
+  scan.resize(num_ranges/10);
 
   Vector2f lidar_loc = loc;
   lidar_loc.x() += 0.2*cos(angle);
@@ -101,7 +101,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     scan[i_scan] = Vector2f(0, 0);
     // Get the visual "ray" vector for this particular scan
     line2f ray_line(1,2,3,4); // Line segment from (1,2) to (3,4)
-    float ray_angle = angle + 1.0*i_scan/num_ranges*(angle_max-angle_min) + angle_min;
+    float ray_angle = angle + 10.0*i_scan/num_ranges*(angle_max-angle_min) + angle_min;
     ray_line.p0.x() = lidar_loc.x() + range_min*cos(ray_angle);
     ray_line.p0.y() = lidar_loc.y() + range_min*sin(ray_angle);
     ray_line.p1.x() = lidar_loc.x() + range_max*cos(ray_angle);
@@ -163,6 +163,13 @@ void ParticleFilter::Update(const vector<float>& ranges,
                          angle_min, angle_max,
                          &predicted_cloud);
 
+  // Resize ranges to match predicted size
+  int ratio = ranges.size() / predicted_cloud.size();
+  vector<float> trimmed_ranges(predicted_cloud.size());
+  for (size_t i = 0; i < predicted_cloud.size(); i++){
+	trimmed_ranges[i] = ranges[ratio*i];
+  }
+
   // Calculate Particle Weight (pure Gaussian to start off)
   float log_error_sum = 0;
   float laser_angle = angle_min;
@@ -174,7 +181,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
 */
   for (size_t i = 0; i < predicted_cloud.size(); i++)
   {
-
     // Vector2f predicted_point1 = Map2BaseLink(predicted_cloud[i], particle.loc, particle.angle);
     Vector2f predicted_point = predicted_cloud[i];
     Vector2f particle_lidar_loc = particle.loc;
@@ -184,7 +190,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
     float predicted_range = (predicted_point-particle_lidar_loc).norm();
 
     // New implementation of piecewise function of d_short and d_long
-    float range_diff = ranges[i] - predicted_range;
+    float range_diff = trimmed_ranges[i] - predicted_range;
 /*
     counter++;
     range_diff_sum += range_diff;
@@ -314,10 +320,10 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
 
   // noise constants to tune
   //TODO give these names rot-translation stuff
-  float k1 = 0.1; // 0.05
-  float k2 = 0.1; // 0.025
-  float k3 = 0.1; // 0.01
-  float k4 = 0.1; // 0.05
+  float k1 = 1.0; // 0.05
+  float k2 = 0.3; // 0.025
+  float k3 = 0.5; // 0.01
+  float k4 = 0.5; // 0.05
   
   Particle& particle = *p_ptr;
   const float abs_angle_diff = abs(dtheta_odom);
@@ -355,8 +361,7 @@ void ParticleFilter::Initialize(const string& map_file,
   cout << "Initialized " << map_file << " with " << map_.lines.size() << " lines!" << endl;
 
   if(odom_initialized_){
-    init_odom_loc_ = prev_odom_loc_;
-    init_odom_angle_ = prev_odom_angle_ - angle;
+    init_offset_angle_ = angle - prev_odom_angle_;
   }
 
   // Make initial guesses (particles) based on a Gaussian distribution about initial placement
@@ -406,7 +411,7 @@ Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc
 }
 
 Vector2f ParticleFilter::OdomVec2Map(const Vector2f odom_vec){
-  Eigen::Rotation2Df R_MB(init_odom_angle_);
+  Eigen::Rotation2Df R_MB(init_offset_angle_);
   return R_MB * odom_vec;
 }
 
