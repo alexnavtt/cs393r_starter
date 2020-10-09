@@ -257,11 +257,11 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   if (dist_since_last_update > update_dist_threshold_)
   {
+    cout << "Updating!" << endl;
     for (auto &particle : particles_)
     {
       // Update all particle weights and find the maximum weight
       Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
-      cout << "Updating!" << endl;
       if (particle.log_weight > max_log_particle_weight_)
       {
         max_log_particle_weight_ = particle.log_weight;
