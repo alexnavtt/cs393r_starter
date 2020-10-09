@@ -304,10 +304,10 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // but this occurs at every timestep
 
   // noise constants to tune
-  float k1 = 0.2;   // translation error per unit translation (suggested: 0.1-0.2)
-  float k2 = 0.01;  // translation error per unit rotation (suggested: 0.01)
-  float k3 = 0.1;   // angular error per unit translation (suggested: 0.02-0.1)
-  float k4 = 0.2;   // angular error per unit rotation (suggested: 0.05-0.2)
+  float k1 = 1.0;   // translation error per unit translation (suggested: 0.1-0.2)
+  float k2 = 0.3;   // translation error per unit rotation (suggested: 0.01)
+  float k3 = 0.5;   // angular error per unit translation (suggested: 0.02-0.1)
+  float k4 = 0.5;   // angular error per unit rotation (suggested: 0.05-0.2)
   
   Particle& particle = *p_ptr;
   const float abs_angle_diff = abs(dtheta_odom);
