@@ -174,8 +174,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
   // Calculate Particle Weight (pure Gaussian to start off)
   float log_error_sum = 0;
-  float laser_angle = angle_min;
-  float angle_diff = (angle_max - angle_min)/ranges.size();
+  float laser_angle = angle_min;  // not used
+  float angle_diff = (angle_max - angle_min)/ranges.size(); // not used
 
   for (size_t i = 0; i < predicted_cloud.size(); i++)
   {
@@ -199,7 +199,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
     log_error_sum += -Sq(range_diff) / var_obs_;
 
-    laser_angle += angle_diff;
+    laser_angle += angle_diff;  // not used
   }
   particle.log_weight += log_error_sum;
 }
@@ -261,6 +261,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
     {
       // Update all particle weights and find the maximum weight
       Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+      cout << "Updating!" << endl;
       if (particle.log_weight > max_log_particle_weight_)
       {
         max_log_particle_weight_ = particle.log_weight;
@@ -272,6 +273,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
     if (updates_without_resample_ > updates_per_resample_)
     {
       Resample();
+      cout << "Resampling!" << endl;
       updates_without_resample_ = 0;
     }
     else updates_without_resample_ ++;
