@@ -65,8 +65,9 @@ ParticleFilter::ParticleFilter() :
     d_long_(0.3),
     d_min_(-2),
     d_max_(2),
-    last_resample_loc_(0,0),
-    resample_threshold_(0.2) {}
+    last_update_loc_(0,0),          // should this be initialized to the starting position?
+    update_dist_threshold_(0.2),
+    resample_counts_threshold_(5) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -249,20 +250,45 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // A new laser scan observation is available (in the laser frame)
 
   // Since the range of weights is (-inf,0] we have to initialize max at -inf
-  max_log_particle_weight_ = -std::numeric_limits<float>::infinity(); 
+  max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
 
-  // Update all particle weights and find the maximum weight
-  for (auto &particle : particles_){
-    Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
-    if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
+  float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
+
+  if (dist_since_last_update > update_dist_threshold_)
+  {
+    for (auto &particle : particles_)
+    {
+      // Update all particle weights and find the maximum weight
+      Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+      if (particle.log_weight > max_log_particle_weight_)
+      {
+        max_log_particle_weight_ = particle.log_weight;
+      }
+    }
+
+    if (updates_without_resample_ > resample_counts_threshold_)
+    {
+      Resample();
+      updates_without_resample_ = 0;
+    }
+    else updates_without_resample_ ++;
+
+    last_update_loc_ = prev_odom_loc_;
   }
 
-  // Resample (we will probably want to stagger this for efficiency)
-  if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_ or (ros::Time::now() - last_resample_time_).toSec() > 1.0){
-    Resample();
-    last_resample_loc_ = prev_odom_loc_;
-    last_resample_time_ = ros::Time::now();
-  }
+  // // Update all particle weights and find the maximum weight
+  // for (auto &particle : particles_)
+  // {
+  //   Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+  //   if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
+  // }
+
+  // // Resample (we will probably want to stagger this for efficiency)
+  // if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_ or (ros::Time::now() - last_resample_time_).toSec() > 1.0){
+  //   Resample();
+  //   last_resample_loc_ = prev_odom_loc_;
+  //   last_resample_time_ = ros::Time::now();
+  // }
 }
 
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
@@ -304,10 +330,10 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // but this occurs at every timestep
 
   // noise constants to tune
-  float k1 = 1.0;   // translation error per unit translation (suggested: 0.1-0.2)
-  float k2 = 0.3;   // translation error per unit rotation (suggested: 0.01)
-  float k3 = 0.5;   // angular error per unit translation (suggested: 0.02-0.1)
-  float k4 = 0.5;   // angular error per unit rotation (suggested: 0.05-0.2)
+  float k1 = 0.2;   // translation error per unit translation (suggested: 0.1-0.2)
+  float k2 = 0.01;  // translation error per unit rotation (suggested: 0.01)
+  float k3 = 0.1;   // angular error per unit translation (suggested: 0.02-0.1)
+  float k4 = 0.2;   // angular error per unit rotation (suggested: 0.05-0.2)
   
   Particle& particle = *p_ptr;
   const float abs_angle_diff = abs(dtheta_odom);
