@@ -39,6 +39,7 @@
 
 using math_util::DegToRad;
 using math_util::RadToDeg;
+using math_util::AngleDiff;
 using geometry::line2f;
 using std::cout;
 using std::endl;
@@ -295,7 +296,8 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   }
 
   const Vector2f odom_trans_diff = OdomVec2Map(odom_loc - prev_odom_loc_);
-  const float angle_diff = (odom_angle - prev_odom_angle_); // TODO Account for angle discontinuity moving from -PI to PI
+  // const float angle_diff = (odom_angle - prev_odom_angle_); // TODO Account for angle discontinuity moving from -PI to PI
+  const float angle_diff = AngleDiff(odom_angle, prev_odom_angle_); // wrapped with fxn from math_util
 
   for (auto &particle : particles_){
     //apply noise to pose of particle
@@ -330,10 +332,10 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
 
   //should the mean b
   //is this how it should be, the meant is the same but the standard deviation, sigma, changes based on k constants
-  float eps_x = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*abs_angle_diff);
+  float eps_x = rng_.Gaussian(0.0, k1*odom_trans_diff.norm() + k2*abs_angle_diff);
   // future improvements wll use different constants for x and y to account for difference in slipping likelihood
-  float eps_y = rng_.Gaussian(0.0,k1*odom_trans_diff.norm() + k2*abs_angle_diff);
-  float eps_angle = rng_.Gaussian(0.0,k3*odom_trans_diff.norm() + k4*abs_angle_diff);
+  float eps_y = rng_.Gaussian(0.0, k1*odom_trans_diff.norm() + k2*abs_angle_diff);
+  float eps_angle = rng_.Gaussian(0.0, k3*odom_trans_diff.norm() + k4*abs_angle_diff);
   particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
   particle.angle += dtheta_odom + eps_angle;
 
@@ -367,9 +369,9 @@ void ParticleFilter::Initialize(const string& map_file,
   // Make initial guesses (particles) based on a Gaussian distribution about initial placement
   for (size_t i = 0; i < FLAGS_num_particles; i++){
     Particle particle_init;
-    particle_init.loc.x() = rng_.Gaussian(loc.x(), 0.25);  // std_dev of 0.25m, to be tuned
-    particle_init.loc.y() = rng_.Gaussian(loc.y(), 0.25);  // std_dev of 0.25m, to be tuned
-    particle_init.angle   = rng_.Gaussian(angle, M_PI/6);  // std_dev of 30deg, to be tuned
+    particle_init.loc.x() = rng_.Gaussian(loc.x(), 1.0);  // std_dev of 1m, to be tuned
+    particle_init.loc.y() = rng_.Gaussian(loc.y(), 1.0);  // std_dev of 1m, to be tuned
+    particle_init.angle   = rng_.Gaussian(angle, M_PI/6); // std_dev of 30deg, to be tuned
     particle_init.log_weight = 0;
     particles_.push_back(particle_init);
   }
