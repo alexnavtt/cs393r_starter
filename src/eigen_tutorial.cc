@@ -4,6 +4,7 @@
 
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
+#include "shared/math/math_util.h"
 
 using std::cout;
 using std::endl;
@@ -14,6 +15,8 @@ using std::cos;
 using Eigen::Vector2f;
 using Eigen::Matrix2f;
 using Eigen::Rotation2Df;
+
+using math_util::AngleDiff;
 
 void DemoBasics() {
   cout << "Basic initialization" << endl;
@@ -76,12 +79,25 @@ void DemoRotations() {
   cout << "m1: \n" << m1 << "\n";
 }
 
+void otherTests() {
+  // angle_diff = AngleDiff(curr_angle, prev_angle)
+  float angle_diff_1 = AngleDiff(6.2, 0.1); // should be -0.183
+  float angle_diff_2 = AngleDiff(0.1, 6.2); // should be 0.183
+  float angle_diff_3 = AngleDiff(1.7, 4.2); // should be -2.5
+  float angle_diff_4 = AngleDiff(5.2, 2.9); // should be 2.3
+
+  printf("Wrap angle results: %f,%f,%f,%f\n", angle_diff_1, angle_diff_2, angle_diff_3, angle_diff_4);
+}
+
 int main() {
   cout << "Basics: Vectors and Matrices.\n";
   DemoBasics();
 
   cout << "\n\n\nDifferent representations of rotation.\n";
   DemoRotations();
+
+  cout << "non-eigen tests" << endl;
+  otherTests();
 
   return 0;
 }

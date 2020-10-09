@@ -72,7 +72,6 @@ void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
 }
 
-// Done by Mark, untested
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             const float angle,
                                             int num_ranges,
@@ -175,11 +174,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
   float log_error_sum = 0;
   float laser_angle = angle_min;
   float angle_diff = (angle_max - angle_min)/ranges.size();
-/*
-  //debug
-  int counter = 0;
-  float range_diff_sum = 0;
-*/
+
   for (size_t i = 0; i < predicted_cloud.size(); i++)
   {
     // Vector2f predicted_point1 = Map2BaseLink(predicted_cloud[i], particle.loc, particle.angle);
@@ -192,15 +187,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
     // New implementation of piecewise function of d_short and d_long
     float range_diff = trimmed_ranges[i] - predicted_range;
-/*
-    counter++;
-    range_diff_sum += range_diff;
-    if (counter%100 == 0){
-      float range_diff_avg = range_diff_sum / 100;
-      cout << "average range diff of pts " << counter-100 << " to " << counter << ": " << range_diff_avg << endl;
-      range_diff_sum = 0;
-    }
-*/
+    // TODO: implement 0 piecewise fxn
     // if (range_diff < d_min_ or range_diff > d_max_){
     //   particle.log_weight -= 1e10;  // corresponds to a weight of 0
     //   return;
@@ -212,7 +199,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
     laser_angle += angle_diff;
   }
-  // cout << range_diff_sum << endl;
   particle.log_weight += log_error_sum;
 }
 
@@ -223,7 +209,7 @@ void ParticleFilter::Resample() {
 
   // Initialize Local Variables (static for speed in exchange for memory)
   vector<Particle> new_particles;                                         // temp variable to house new particles
- // static vector<float> normalized_log_weights(FLAGS_num_particles);       // vector of log(w/w_max) = log(w) - log(w_max)
+ // static vector<float> normalized_log_weights(FLAGS_num_particles);     // vector of log(w/w_max) = log(w) - log(w_max)
   static vector<float> absolute_weight_breakpoints(FLAGS_num_particles);  // vector of cumulative absolute normalized weights
   float normalized_sum = 0;                                               // sum of normalized (but NOT log) weights: used for resampling
 
@@ -262,7 +248,8 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
 
-  max_log_particle_weight_ = -std::numeric_limits<float>::infinity(); // Since the range of weights is (-inf,0] we have to initialize max at -inf
+  // Since the range of weights is (-inf,0] we have to initialize max at -inf
+  max_log_particle_weight_ = -std::numeric_limits<float>::infinity(); 
 
   // Update all particle weights and find the maximum weight
   for (auto &particle : particles_){
@@ -278,12 +265,6 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 }
 
-// InProgress by Connor
-// there is most recent estimate of location and then there are particles
-// we use information about particles to update most recent estimate of location
-// I think for loop actually needs to go at start fo this function.
-// but then are we updating the state based on noise applied to all the particles? 
-// how do we average that out?
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
                                      const float odom_angle) {
   // A new odometry value is available (in the odom frame)
@@ -296,8 +277,11 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   }
 
   const Vector2f odom_trans_diff = OdomVec2Map(odom_loc - prev_odom_loc_);
-  // const float angle_diff = (odom_angle - prev_odom_angle_); // TODO Account for angle discontinuity moving from -PI to PI
-  const float angle_diff = AngleDiff(odom_angle, prev_odom_angle_); // wrapped with fxn from math_util
+  const float angle_diff = AngleDiff(odom_angle, prev_odom_angle_);
+  if (std::abs(angle_diff) > M_2PI)
+  {
+    cout << "Error: reported change in angle exceeds 2pi" << endl;
+  }
 
   for (auto &particle : particles_){
     //apply noise to pose of particle
@@ -306,7 +290,6 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
 
   prev_odom_loc_ = odom_loc;
   prev_odom_angle_ = odom_angle;
-
 }
 
 // Done by Connor
@@ -321,35 +304,23 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // but this occurs at every timestep
 
   // noise constants to tune
-  float k1 = 5; // translation noise due to unit translation
-  float k2 = 1; // translation noise due to unit rotation
-  float k3 = 0.5;// rotation noise due to unit translation
-  float k4 = 5; // rotation noise due to unit rotation
+  float k1 = 0.2;   // translation error per unit translation (suggested: 0.1-0.2)
+  float k2 = 0.01;  // translation error per unit rotation (suggested: 0.01)
+  float k3 = 0.1;   // angular error per unit translation (suggested: 0.02-0.1)
+  float k4 = 0.2;   // angular error per unit rotation (suggested: 0.05-0.2)
   
   Particle& particle = *p_ptr;
   const float abs_angle_diff = abs(dtheta_odom);
+  const float abs_trans_diff_x = abs(odom_trans_diff.x());
+  const float abs_trans_diff_y = abs(odom_trans_diff.y());
 
-  //should the mean b
-  //is this how it should be, the meant is the same but the standard deviation, sigma, changes based on k constants
-  float eps_x = rng_.Gaussian(0.0, std::abs(k1*odom_trans_diff.x()) + k2*abs_angle_diff);
-  // future improvements wll use different constants for x and y to account for difference in slipping likelihood
-  float eps_y = rng_.Gaussian(0.0, std::abs(k1*odom_trans_diff.y()) + k2*abs_angle_diff);
-  float eps_angle = rng_.Gaussian(0.0, k3*odom_trans_diff.norm() + k4*abs_angle_diff);
-  particle.loc += odom_trans_diff + Vector2f(eps_x,eps_y);
-  particle.angle += dtheta_odom + eps_angle;
-
-  // cout << particle.loc << endl;
-
-  // // STARTER CODE that we can delete later on
-  // // You will need to use the Gaussian random number generator provided. For
-  // // example, to generate a random number from a Gaussian with mean 0, and
-  // // standard deviation 2:
-  // float x = rng_.Gaussian(0.0, 2.0);
-  // printf("Random number drawn from Gaussian distribution with 0 mean and "
-  //        "standard deviation of 2 : %f\n", x);
+  float translation_noise_x = rng_.Gaussian(0.0, k1*abs_trans_diff_x + k2*abs_angle_diff);
+  float translation_noise_y = rng_.Gaussian(0.0, k1*abs_trans_diff_y + k2*abs_angle_diff);
+  float rotation_noise = rng_.Gaussian(0.0, k3*odom_trans_diff.norm() + k4*abs_angle_diff);
+  particle.loc += odom_trans_diff + Vector2f(translation_noise_x, translation_noise_y);
+  particle.angle += dtheta_odom + rotation_noise;
 }
 
-// Done by Mark
 // Called by InitCallback in particle_filter_main
 void ParticleFilter::Initialize(const string& map_file,
                                 const Vector2f& loc,
@@ -358,8 +329,7 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   particles_.clear(); // Need to get rid of particles from previous inits
-  map_.Load("maps/" + map_file + ".txt"); // from Piazza
-  cout << "Initialized " << map_file << " with " << map_.lines.size() << " lines!" << endl;
+  map_.Load("maps/" + map_file + ".txt");
 
   if(odom_initialized_){
     init_offset_angle_ = angle - prev_odom_angle_;
@@ -368,9 +338,9 @@ void ParticleFilter::Initialize(const string& map_file,
   // Make initial guesses (particles) based on a Gaussian distribution about initial placement
   for (size_t i = 0; i < FLAGS_num_particles; i++){
     Particle particle_init;
-    particle_init.loc.x() = rng_.Gaussian(loc.x(), 0.25);  // std_dev of 1m, to be tuned
-    particle_init.loc.y() = rng_.Gaussian(loc.y(), 0.25);  // std_dev of 1m, to be tuned
-    particle_init.angle   = rng_.Gaussian(angle, M_PI/6); // std_dev of 30deg, to be tuned
+    particle_init.loc.x() = rng_.Gaussian(loc.x(), 0.25);  // std_dev of 0.25m, to be tuned
+    particle_init.loc.y() = rng_.Gaussian(loc.y(), 0.25);  // std_dev of 0.25m, to be tuned
+    particle_init.angle   = rng_.Gaussian(angle, M_PI/6);  // std_dev of 30deg, to be tuned
     particle_init.log_weight = 0;
     particles_.push_back(particle_init);
   }
