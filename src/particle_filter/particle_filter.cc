@@ -67,7 +67,8 @@ ParticleFilter::ParticleFilter() :
     d_max_(2),
     last_update_loc_(0,0),          // should this be initialized to the starting position?
     update_dist_threshold_(0.2),
-    resample_counts_threshold_(5) {}
+    updates_without_resample_(100), // this will make it update first step
+    updates_per_resample_(5) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -265,15 +266,15 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
         max_log_particle_weight_ = particle.log_weight;
       }
     }
+    last_update_loc_ = prev_odom_loc_;
 
-    if (updates_without_resample_ > resample_counts_threshold_)
+    // Resample
+    if (updates_without_resample_ > updates_per_resample_)
     {
       Resample();
       updates_without_resample_ = 0;
     }
     else updates_without_resample_ ++;
-
-    last_update_loc_ = prev_odom_loc_;
   }
 
   // // Update all particle weights and find the maximum weight

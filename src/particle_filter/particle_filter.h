@@ -122,8 +122,8 @@ class ParticleFilter {
   float max_log_particle_weight_;
   Eigen::Vector2f last_update_loc_;
   float update_dist_threshold_;
-  int updates_without_resample_ = 1;
-  int resample_counts_threshold_;
+  int updates_without_resample_;
+  int updates_per_resample_;
 };
 }  // namespace slam
 
