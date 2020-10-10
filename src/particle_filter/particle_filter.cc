@@ -52,6 +52,11 @@ using vector_map::VectorMap;
 
 DEFINE_double(num_particles, 50, "Number of particles");
 
+namespace {
+  Vector2f last_resample_loc_;
+  ros::Time last_resample_time_;
+}
+
 namespace particle_filter {
 
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
@@ -65,10 +70,10 @@ ParticleFilter::ParticleFilter() :
     d_long_(0.3),
     d_min_(-2),
     d_max_(2),
-    last_update_loc_(0,0),          // should this be initialized to the starting position?
-    update_dist_threshold_(0.2),
+    last_update_loc_(0,0),
+    update_dist_threshold_(0.05),
     updates_without_resample_(100), // this will make it update first step
-    updates_per_resample_(5) {}
+    updates_per_resample_(25) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -83,18 +88,11 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             float angle_max,
                                             vector<Vector2f>* scan_ptr) {
   vector<Vector2f>& scan = *scan_ptr;
-  // Compute what the predicted point cloud would be, if the car was at the pose
-  // loc, angle, with the sensor characteristics defined by the provided
-  // parameters.
-  // This is NOT the motion model predict step: it is the prediction of the
-  // expected observations, to be used for the update step.
 
   // Note: The returned values must be set using the `scan` variable:
   scan.resize(num_ranges/10);
 
-  Vector2f lidar_loc = loc;
-  lidar_loc.x() += 0.2*cos(angle);
-  lidar_loc.y() += 0.2*sin(angle);
+  Vector2f lidar_loc = loc + 0.2*Vector2f( cos(angle), sin(angle) );
   
   // Sweeps through angles of virtual Lidar and returns closest point
   for (size_t i_scan = 0; i_scan < scan.size(); i_scan++)
@@ -132,10 +130,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
         }
       }
     }
-    // Return closest point for this particular scan
-    // NOTE: I think this should be put in the base_link frame since that is
-    //       how the world is observed with the physical Lidar. However, I'm
-    //       leaving it in the map frame at least for now to visualize easier.
+    // Return closest point for this particular scan (map frame)
     scan[i_scan] = intersection_min;
 
     // Optional: If you just want the range
@@ -169,38 +164,30 @@ void ParticleFilter::Update(const vector<float>& ranges,
   int ratio = ranges.size() / predicted_cloud.size();
   vector<float> trimmed_ranges(predicted_cloud.size());
   for (size_t i = 0; i < predicted_cloud.size(); i++){
-	trimmed_ranges[i] = ranges[ratio*i];
+    trimmed_ranges[i] = ranges[ratio*i];
   }
 
   // Calculate Particle Weight (pure Gaussian to start off)
   float log_error_sum = 0;
-  float laser_angle = angle_min;  // not used
-  float angle_diff = (angle_max - angle_min)/ranges.size(); // not used
 
   for (size_t i = 0; i < predicted_cloud.size(); i++)
   {
-    // Vector2f predicted_point1 = Map2BaseLink(predicted_cloud[i], particle.loc, particle.angle);
     Vector2f predicted_point = predicted_cloud[i];
-    Vector2f particle_lidar_loc = particle.loc;
-    particle_lidar_loc.x() += 0.2*cos(particle.angle);
-    particle_lidar_loc.y() += 0.2*sin(particle.angle);
-    // float predicted_range1 = (predicted_point1 - Vector2f(0.2, 0)).norm();
+    Vector2f particle_lidar_loc = particle.loc + 0.2*Vector2f( cos(particle.angle), sin(particle.angle) );
     float predicted_range = (predicted_point-particle_lidar_loc).norm();
+
+    // Discount any erronious readings at the limits of the lidar range
+    if (predicted_range > range_max       or predicted_range < range_min
+           or ranges[i] > 0.95*range_max  or ranges[i] <  1.05*range_min) continue;
 
     // New implementation of piecewise function of d_short and d_long
     float range_diff = trimmed_ranges[i] - predicted_range;
-    // TODO: implement 0 piecewise fxn
-    // if (range_diff < d_min_ or range_diff > d_max_){
-    //   particle.log_weight -= 1e10;  // corresponds to a weight of 0
-    //   return;
-    // }
     range_diff = std::min(range_diff, d_long_);
     range_diff = std::max(range_diff,-d_short_);
 
     log_error_sum += -Sq(range_diff) / var_obs_;
-
-    laser_angle += angle_diff;  // not used
   }
+
   particle.log_weight += log_error_sum;
 }
 
@@ -217,10 +204,7 @@ void ParticleFilter::Resample() {
 
   // Normalize each of the log weights
   for (size_t i=0; i < FLAGS_num_particles; i++){
-   // normalized_log_weights[i] = particles_[i].log_weight - max_log_particle_weight_;
     particles_[i].log_weight -= max_log_particle_weight_;
-  //  cout << "Particle Weight: " << exp(particles_[i].log_weight) << endl;
-   // normalized_sum += exp(normalized_log_weights[i]);
     normalized_sum += exp(particles_[i].log_weight);
     absolute_weight_breakpoints[i] = normalized_sum;
   }
@@ -238,6 +222,7 @@ void ParticleFilter::Resample() {
     }
   }
 
+  max_log_particle_weight_ = 0;
   particles_ = new_particles;
 }
 
@@ -250,48 +235,48 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
 
-  // Since the range of weights is (-inf,0] we have to initialize max at -inf
-  max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
-
   float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
 
-  if (dist_since_last_update > update_dist_threshold_)
-  {
-    cout << "Updating!" << endl;
-    for (auto &particle : particles_)
-    {
-      // Update all particle weights and find the maximum weight
-      Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
-      if (particle.log_weight > max_log_particle_weight_)
-      {
-        max_log_particle_weight_ = particle.log_weight;
-      }
-    }
-    last_update_loc_ = prev_odom_loc_;
+  // if (dist_since_last_update > update_dist_threshold_)
+  // {
+    // Since the range of weights is (-inf,0] we have to initialize max at -inf
+    max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
 
-    // Resample
-    if (updates_without_resample_ > updates_per_resample_)
-    {
-      Resample();
-      cout << "Resampling!" << endl;
-      updates_without_resample_ = 0;
-    }
-    else updates_without_resample_ ++;
+    // cout << "Updating!" << endl;
+    // for (auto &particle : particles_)
+    // {
+    //   // Update all particle weights and find the maximum weight
+    //   Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+    //   if (particle.log_weight > max_log_particle_weight_)
+    //   {
+    //     max_log_particle_weight_ = particle.log_weight;
+    //   }
+    // }
+    // last_update_loc_ = prev_odom_loc_;
+
+    // // Resample
+    // if (updates_without_resample_ > updates_per_resample_)
+    // {
+    //   Resample();
+    //   cout << "Resampling!" << endl;
+    //   updates_without_resample_ = 0;
+    // }
+    // else updates_without_resample_ ++;
+  // }
+
+  // Update all particle weights and find the maximum weight
+  for (auto &particle : particles_)
+  {
+    Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+    if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
   }
 
-  // // Update all particle weights and find the maximum weight
-  // for (auto &particle : particles_)
-  // {
-  //   Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
-  //   if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
-  // }
-
-  // // Resample (we will probably want to stagger this for efficiency)
-  // if ((prev_odom_loc_ - last_resample_loc_).norm() > resample_threshold_ or (ros::Time::now() - last_resample_time_).toSec() > 1.0){
-  //   Resample();
-  //   last_resample_loc_ = prev_odom_loc_;
-  //   last_resample_time_ = ros::Time::now();
-  // }
+  // Resample (we will probably want to stagger this for efficiency)
+  if (dist_since_last_update > 0.1 or (ros::Time::now() - last_resample_time_).toSec() > 1.0){
+    Resample();
+    last_resample_loc_ = prev_odom_loc_;
+    last_resample_time_ = ros::Time::now();
+  }
 }
 
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
@@ -299,9 +284,10 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-  if (particles_.empty()) return;
+  // if (particles_.empty()) return;
 
   if (not odom_initialized_){
+    last_update_loc_ = odom_loc;
     odom_initialized_ = true;
   }
 
@@ -339,9 +325,9 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   float k4 = 0.2;   // angular error per unit rotation (suggested: 0.05-0.2)
   
   Particle& particle = *p_ptr;
-  const float abs_angle_diff = abs(dtheta_odom);
+  const float abs_angle_diff   = abs(dtheta_odom);
   const float abs_trans_diff_x = abs(odom_trans_diff.x());
-  const float abs_trans_diff_y = abs(odom_trans_diff.y());
+  const float abs_trans_diff_y = abs(odom_trans_diff.x());
 
   float translation_noise_x = rng_.Gaussian(0.0, k1*abs_trans_diff_x + k2*abs_angle_diff);
   float translation_noise_y = rng_.Gaussian(0.0, k1*abs_trans_diff_y + k2*abs_angle_diff);
