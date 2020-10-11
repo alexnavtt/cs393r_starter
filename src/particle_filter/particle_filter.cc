@@ -65,7 +65,7 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    var_obs_(1.0), // variance of lidar, to be tuned
+    var_obs_(1.0), // variance of lidar
     d_short_(0.5), // was 0.1
     d_long_(0.5){} // was 0.3
 
@@ -221,7 +221,6 @@ void ParticleFilter::Resample() {
   particles_ = new_particles;
 }
 
-// Done by Alex
 // Called by LaserCallback in particle_filter_main
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float range_min,
@@ -255,7 +254,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 }
 
-// 
+// Get changes in odom frame and call UpdateParticleLocation to add noise
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
                                      const float odom_angle) {
   // A new odometry value is available (in the odom frame)
@@ -292,31 +291,25 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   }
 }
 
-// Update a given particle with random noise based on recent movement
-void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dtheta_odom, Particle* p_ptr)
+// Update a given particle with random noise based on motion model
+void ParticleFilter::UpdateParticleLocation(Vector2f map_trans_diff, float dtheta_odom, Particle* p_ptr)
 {
-  // Use the motion model to update each particle's location
-  // This function will probably be called in the ObserveOdometry callback
-  // You can update the particle location directly by modifying the particle variable
-  // defined above since it was passed by reference (using the "&" symbol).
-  // this particle passed by reference comes from ObserveLaser for loop
-  // and is modified by Update function similar to how it is being modified here
-  // but this occurs at every timestep
-
   // Noise constants to tune
   const float k1 = 0.50;  // translation error per unit translation (suggested: 0.1-0.2)
-  const float k2 = 0.25;  // translation error per unit rotation (suggested: 0.01)
+  const float k2 = 0.1;  // translation error per unit rotation (suggested: 0.01)
   const float k3 = 0.50;  // angular error per unit translation (suggested: 0.02-0.1)
   const float k4 = 0.75;  // angular error per unit rotation (suggested: 0.05-0.2)
   
   Particle& particle = *p_ptr;
-  const float angle_diff = dtheta_odom;
+  const float map_trans_diff_x = abs(map_trans_diff.x());
+  const float map_trans_diff_y = abs(map_trans_diff.y());
+  const float abs_angle_diff = abs(dtheta_odom);
 
-  // TODO: add noise to x and y based on movement in that dimension
-  const float translation_noise_x = rng_.Gaussian(0.0, k1*odom_trans_diff.norm() + k2*abs(angle_diff));
-  const float translation_noise_y = rng_.Gaussian(0.0, k1*odom_trans_diff.norm() + k2*abs(angle_diff));
-  const float rotation_noise = rng_.Gaussian(0.0, k3*odom_trans_diff.norm() + k4*abs(angle_diff));
-  particle.loc += odom_trans_diff + Vector2f(translation_noise_x, translation_noise_y);
+  // Add noise to x, y, and theta based on movement in that dimension
+  const float translation_noise_x = rng_.Gaussian(0.0, k1*map_trans_diff_x + k2*abs_angle_diff);
+  const float translation_noise_y = rng_.Gaussian(0.0, k1*map_trans_diff_y + k2*abs_angle_diff);
+  const float rotation_noise = rng_.Gaussian(0.0, k3*map_trans_diff.norm() + k4*abs_angle_diff);
+  particle.loc += map_trans_diff + Vector2f(translation_noise_x, translation_noise_y);
   particle.angle += dtheta_odom + rotation_noise;
 }
 
@@ -378,6 +371,7 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   angle = weighted_angle_sum / weight_sum;
 }
 
+// NOTE: The below 2 fxns are never called, should either implement or delete
 // Helper function to convert from map to base_link, untested
 Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc, const float angle){
   Eigen::Rotation2Df R_inv(-angle); // negative of angle should be the same as transpose or inverse, right?
@@ -385,7 +379,6 @@ Vector2f ParticleFilter::Map2BaseLink(const Vector2f& point, const Vector2f& loc
   Vector2f lidar_offset(0.2, 0);
   return lidar_reading - lidar_offset; // transformation to base_link frame
 }
-
 Vector2f ParticleFilter::OdomVec2Map(const Vector2f odom_vec){
   Eigen::Rotation2Df R_MB(init_offset_angle_);
   return R_MB * odom_vec;
