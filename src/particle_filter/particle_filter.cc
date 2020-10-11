@@ -53,9 +53,9 @@ using vector_map::VectorMap;
 DEFINE_double(num_particles, 50, "Number of particles");
 
 namespace {
-  Vector2f last_resample_loc_;
-  ros::Time last_resample_time_;
-}
+  int updates_since_last_resample_ = 0;
+  Vector2f last_update_loc_(0,0);
+} // namespace
 
 namespace particle_filter {
 
@@ -65,20 +65,15 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    var_obs_(1),
-    d_short_(0.1),
-    d_long_(0.3),
-    d_min_(-2),
-    d_max_(2),
-    last_update_loc_(0,0),
-    update_dist_threshold_(0.05),
-    updates_without_resample_(100), // this will make it update first step
-    updates_per_resample_(25) {}
+    var_obs_(1.0), // variance of lidar, to be tuned
+    d_short_(0.5), // was 0.1
+    d_long_(0.5){} // was 0.3
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
 }
 
+// Return intersection points in a known map with a given pose
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             const float angle,
                                             int num_ranges,
@@ -141,7 +136,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   }
 }
 
-// Done by Alex
+// Update weight of a given particle based on how well it fits map
 void ParticleFilter::Update(const vector<float>& ranges,
                             float range_min,
                             float range_max,
@@ -163,20 +158,20 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // Resize ranges to match predicted size
   int ratio = ranges.size() / predicted_cloud.size();
   vector<float> trimmed_ranges(predicted_cloud.size());
-  for (size_t i = 0; i < predicted_cloud.size(); i++){
+  for (size_t i = 0; i < predicted_cloud.size(); i++)
+  {
     trimmed_ranges[i] = ranges[ratio*i];
   }
 
   // Calculate Particle Weight (pure Gaussian to start off)
   float log_error_sum = 0;
-
   for (size_t i = 0; i < predicted_cloud.size(); i++)
   {
     Vector2f predicted_point = predicted_cloud[i];
     Vector2f particle_lidar_loc = particle.loc + 0.2*Vector2f( cos(particle.angle), sin(particle.angle) );
     float predicted_range = (predicted_point-particle_lidar_loc).norm();
 
-    // Discount any erronious readings at the limits of the lidar range
+    // Discount any erronious readings at or exceeding the limits of the lidar range
     if (predicted_range > range_max       or predicted_range < range_min
            or ranges[i] > 0.95*range_max  or ranges[i] <  1.05*range_min) continue;
 
@@ -188,10 +183,10 @@ void ParticleFilter::Update(const vector<float>& ranges,
     log_error_sum += -Sq(range_diff) / var_obs_;
   }
 
-  particle.log_weight += log_error_sum;
+  particle.log_weight += log_error_sum; //gamma is 1
 }
 
-// Done by Alex
+// Resample particles to duplicate good ones and get rid of bad ones
 void ParticleFilter::Resample() {
   // Check whether particles have been initialized
   if (particles_.empty() or not odom_initialized_) return;
@@ -234,80 +229,70 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_min,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
+  // Since the range of weights is (-inf,0] we have to initialize max at -inf
+  max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
 
   float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
-
-  // if (dist_since_last_update > update_dist_threshold_)
-  // {
-    // Since the range of weights is (-inf,0] we have to initialize max at -inf
-    max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
-
-    // cout << "Updating!" << endl;
-    // for (auto &particle : particles_)
-    // {
-    //   // Update all particle weights and find the maximum weight
-    //   Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
-    //   if (particle.log_weight > max_log_particle_weight_)
-    //   {
-    //     max_log_particle_weight_ = particle.log_weight;
-    //   }
-    // }
-    // last_update_loc_ = prev_odom_loc_;
-
-    // // Resample
-    // if (updates_without_resample_ > updates_per_resample_)
-    // {
-    //   Resample();
-    //   cout << "Resampling!" << endl;
-    //   updates_without_resample_ = 0;
-    // }
-    // else updates_without_resample_ ++;
-  // }
-
-  // Update all particle weights and find the maximum weight
-  for (auto &particle : particles_)
+  // If we've moved at least 0.1m but haven't moved over 1m (filters out new initialization and timing errors)
+  if (dist_since_last_update > 0.1 and dist_since_last_update < 1.0)
   {
-    Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
-    if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
-  }
+    // Update all particle weights and find the maximum weight
+    for (auto &particle : particles_)
+    {
+      Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+      if (particle.log_weight > max_log_particle_weight_) max_log_particle_weight_ = particle.log_weight;
+    }
+    last_update_loc_ = prev_odom_loc_;
+    // cout << "UPDATE" << endl;
 
-  // Resample (we will probably want to stagger this for efficiency)
-  if (dist_since_last_update > 0.1 or (ros::Time::now() - last_resample_time_).toSec() > 1.0){
-    Resample();
-    last_resample_loc_ = prev_odom_loc_;
-    last_resample_time_ = ros::Time::now();
+    // Resample every n updates
+    if (updates_since_last_resample_ > 5){
+      Resample();
+      // cout << "RESAMPLE" << endl;
+      updates_since_last_resample_ = 0;
+    }
+    updates_since_last_resample_ ++;
   }
 }
 
+// 
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
                                      const float odom_angle) {
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-  // if (particles_.empty()) return;
 
-  if (not odom_initialized_){
-    last_update_loc_ = odom_loc;
-    odom_initialized_ = true;
-  }
+  Vector2f odom_trans_diff = odom_loc - prev_odom_loc_;
 
-  const Vector2f odom_trans_diff = OdomVec2Map(odom_loc - prev_odom_loc_);
-  const float angle_diff = AngleDiff(odom_angle, prev_odom_angle_);
-  if (std::abs(angle_diff) > M_2PI)
+  // Only executes if odom is initialized and a realistic value
+  if (odom_initialized_ and odom_trans_diff.norm() < 1.0)
   {
-    cout << "Error: reported change in angle exceeds 2pi" << endl;
+    float angle_diff = AngleDiff(odom_angle, prev_odom_angle_);
+    if (std::abs(angle_diff) > M_2PI)
+    {
+      // Should never happen, but just in case:
+      cout << "Error: reported change in angle exceeds 2pi" << endl;
+    }
+    for (auto &particle : particles_)
+    {
+      // Find the transformation between the map and odom frame for this particle
+      Eigen::Rotation2Df R_Odom2Map(AngleDiff(particle.angle, prev_odom_angle_));
+      Vector2f map_trans_diff = R_Odom2Map * odom_trans_diff;
+      // Apply noise to pose of particle
+      UpdateParticleLocation(map_trans_diff, angle_diff, &particle);
+    }
+    prev_odom_loc_ = odom_loc;
+    prev_odom_angle_ = odom_angle;
   }
-
-  for (auto &particle : particles_){
-    //apply noise to pose of particle
-    UpdateParticleLocation(odom_trans_diff,angle_diff, &particle);
+  else
+  {
+    ResetOdomVariables(odom_loc, odom_angle);
+    odom_initialized_ = true;
+    cout << "Odom reset due to initialization or large movement." << endl;
   }
-
-  prev_odom_loc_ = odom_loc;
-  prev_odom_angle_ = odom_angle;
 }
 
-// Done by Connor
+// Update a given particle with random noise based on recent movement
 void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dtheta_odom, Particle* p_ptr)
 {
   // Use the motion model to update each particle's location
@@ -318,20 +303,19 @@ void ParticleFilter::UpdateParticleLocation(Vector2f odom_trans_diff, float dthe
   // and is modified by Update function similar to how it is being modified here
   // but this occurs at every timestep
 
-  // noise constants to tune
-  float k1 = 0.2;   // translation error per unit translation (suggested: 0.1-0.2)
-  float k2 = 0.01;  // translation error per unit rotation (suggested: 0.01)
-  float k3 = 0.1;   // angular error per unit translation (suggested: 0.02-0.1)
-  float k4 = 0.2;   // angular error per unit rotation (suggested: 0.05-0.2)
+  // Noise constants to tune
+  const float k1 = 0.50;  // translation error per unit translation (suggested: 0.1-0.2)
+  const float k2 = 0.25;  // translation error per unit rotation (suggested: 0.01)
+  const float k3 = 0.50;  // angular error per unit translation (suggested: 0.02-0.1)
+  const float k4 = 0.75;  // angular error per unit rotation (suggested: 0.05-0.2)
   
   Particle& particle = *p_ptr;
-  const float abs_angle_diff   = abs(dtheta_odom);
-  const float abs_trans_diff_x = abs(odom_trans_diff.x());
-  const float abs_trans_diff_y = abs(odom_trans_diff.x());
+  const float angle_diff = dtheta_odom;
 
-  float translation_noise_x = rng_.Gaussian(0.0, k1*abs_trans_diff_x + k2*abs_angle_diff);
-  float translation_noise_y = rng_.Gaussian(0.0, k1*abs_trans_diff_y + k2*abs_angle_diff);
-  float rotation_noise = rng_.Gaussian(0.0, k3*odom_trans_diff.norm() + k4*abs_angle_diff);
+  // TODO: add noise to x and y based on movement in that dimension
+  const float translation_noise_x = rng_.Gaussian(0.0, k1*odom_trans_diff.norm() + k2*abs(angle_diff));
+  const float translation_noise_y = rng_.Gaussian(0.0, k1*odom_trans_diff.norm() + k2*abs(angle_diff));
+  const float rotation_noise = rng_.Gaussian(0.0, k3*odom_trans_diff.norm() + k4*abs(angle_diff));
   particle.loc += odom_trans_diff + Vector2f(translation_noise_x, translation_noise_y);
   particle.angle += dtheta_odom + rotation_noise;
 }
@@ -345,10 +329,8 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
   particles_.clear(); // Need to get rid of particles from previous inits
   map_.Load("maps/" + map_file + ".txt");
-
-  if(odom_initialized_){
-    init_offset_angle_ = angle - prev_odom_angle_;
-  }
+  odom_initialized_ = false;
+  ResetOdomVariables(loc, angle);
 
   // Make initial guesses (particles) based on a Gaussian distribution about initial placement
   for (size_t i = 0; i < FLAGS_num_particles; i++){
@@ -358,10 +340,18 @@ void ParticleFilter::Initialize(const string& map_file,
     particle_init.angle   = rng_.Gaussian(angle, M_PI/6);  // std_dev of 30deg, to be tuned
     particle_init.log_weight = 0;
     particles_.push_back(particle_init);
-  }
+  }  
 }
 
-// Done by Mark, untested
+// Called when new pose is set or robot is moved substantially ("kidnapped")
+void ParticleFilter::ResetOdomVariables(const Vector2f loc, const float angle) {
+  init_offset_angle_ = angle - prev_odom_angle_;
+  last_update_loc_ = loc;
+  prev_odom_loc_ = loc;
+  prev_odom_angle_ = angle;
+  updates_since_last_resample_ = 0;
+}
+
 // Called by OdometryCallback in particle_filter_main
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
                                  float* angle_ptr) const {
