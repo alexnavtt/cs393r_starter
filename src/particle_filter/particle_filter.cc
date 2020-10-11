@@ -233,7 +233,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
   // If we've moved at least 0.1m but haven't moved over 1m (filters out new initialization and timing errors)
-  if (dist_since_last_update > 0.1 and dist_since_last_update < 1.0)
+  if (dist_since_last_update > 0.0 and dist_since_last_update < 1.0)
   {
     // Update all particle weights and find the maximum weight
     for (auto &particle : particles_)
