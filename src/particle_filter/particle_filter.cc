@@ -233,8 +233,8 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
   // If we've moved at least 0.1m but haven't moved over 1m (filters out new initialization and timing errors)
-  if (dist_since_last_update > 0.0 and dist_since_last_update < 1.0)
-  {
+  // if (dist_since_last_update > 0.1 and dist_since_last_update < 1.0) {
+  if (dist_since_last_update < 1.0) {
     // Update all particle weights and find the maximum weight
     for (auto &particle : particles_)
     {
@@ -296,8 +296,8 @@ void ParticleFilter::UpdateParticleLocation(Vector2f map_trans_diff, float dthet
 {
   // Noise constants to tune
   const float k1 = 0.50;  // translation error per unit translation (suggested: 0.1-0.2)
-  const float k2 = 0.1;  // translation error per unit rotation (suggested: 0.01)
-  const float k3 = 0.50;  // angular error per unit translation (suggested: 0.02-0.1)
+  const float k2 = 0.05;  // translation error per unit rotation (suggested: 0.01)
+  const float k3 = 0.25;  // angular error per unit translation (suggested: 0.02-0.1)
   const float k4 = 0.75;  // angular error per unit rotation (suggested: 0.05-0.2)
   
   Particle& particle = *p_ptr;
