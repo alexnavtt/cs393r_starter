@@ -55,6 +55,7 @@ DEFINE_double(num_particles, 50, "Number of particles");
 namespace {
   int updates_since_last_resample_ = 0;
   Vector2f last_update_loc_(0,0);
+  Vector2f last_resample_loc_(0,0);
 } // namespace
 
 namespace particle_filter {
@@ -231,7 +232,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Since the range of weights is (-inf,0] we have to initialize max at -inf
   max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
 
-  float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
+  const float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
   // If we've moved at least 0.1m but haven't moved over 1m (filters out new initialization and timing errors)
   // if (dist_since_last_update > 0.1 and dist_since_last_update < 1.0) {
   if (dist_since_last_update < 1.0) {
@@ -244,11 +245,13 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
     last_update_loc_ = prev_odom_loc_;
     // cout << "UPDATE" << endl;
 
-    // Resample every n updates
-    if (updates_since_last_resample_ > 5){
+    // Resample every n updates (unless you're stopped)
+    const float dist_since_last_resample = (prev_odom_loc_ - last_resample_loc_).norm();
+    if (updates_since_last_resample_ > 5 and dist_since_last_resample > 0.1){
       Resample();
       // cout << "RESAMPLE" << endl;
       updates_since_last_resample_ = 0;
+      last_resample_loc_ = prev_odom_loc_;
     }
     updates_since_last_resample_ ++;
   }
@@ -295,10 +298,10 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
 void ParticleFilter::UpdateParticleLocation(Vector2f map_trans_diff, float dtheta_odom, Particle* p_ptr)
 {
   // Noise constants to tune
-  const float k1 = 1.00;  // translation error per unit translation (suggested: 0.1-0.2) was 1
-  const float k2 = 0.05;  // translation error per unit rotation (suggested: 0.01) was 0.25
-  const float k3 = 0.50;  // angular error per unit translation (suggested: 0.02-0.1) was 0.5
-  const float k4 = 1.00;  // angular error per unit rotation (suggested: 0.05-0.2) was 1
+  const float k1 = 0.40;  // translation error per unit translation (suggested: 0.1-0.2) was 1
+  const float k2 = 0.02;  // translation error per unit rotation (suggested: 0.01) was 0.25
+  const float k3 = 0.20;  // angular error per unit translation (suggested: 0.02-0.1) was 0.5
+  const float k4 = 0.40;  // angular error per unit rotation (suggested: 0.05-0.2) was 1
   
   Particle& particle = *p_ptr;
   // const float map_trans_diff_x = abs(map_trans_diff.x());
@@ -342,6 +345,7 @@ void ParticleFilter::Initialize(const string& map_file,
 void ParticleFilter::ResetOdomVariables(const Vector2f loc, const float angle) {
   init_offset_angle_ = angle - prev_odom_angle_;
   last_update_loc_ = loc;
+  last_resample_loc_ = loc;
   prev_odom_loc_ = loc;
   prev_odom_angle_ = angle;
   updates_since_last_resample_ = 0;
