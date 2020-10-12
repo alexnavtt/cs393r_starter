@@ -295,19 +295,21 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
 void ParticleFilter::UpdateParticleLocation(Vector2f map_trans_diff, float dtheta_odom, Particle* p_ptr)
 {
   // Noise constants to tune
-  const float k1 = 0.50;  // translation error per unit translation (suggested: 0.1-0.2)
-  const float k2 = 0.05;  // translation error per unit rotation (suggested: 0.01)
-  const float k3 = 0.25;  // angular error per unit translation (suggested: 0.02-0.1)
-  const float k4 = 0.75;  // angular error per unit rotation (suggested: 0.05-0.2)
+  const float k1 = 1.00;  // translation error per unit translation (suggested: 0.1-0.2) was 1
+  const float k2 = 0.05;  // translation error per unit rotation (suggested: 0.01) was 0.25
+  const float k3 = 0.50;  // angular error per unit translation (suggested: 0.02-0.1) was 0.5
+  const float k4 = 1.00;  // angular error per unit rotation (suggested: 0.05-0.2) was 1
   
   Particle& particle = *p_ptr;
-  const float map_trans_diff_x = abs(map_trans_diff.x());
-  const float map_trans_diff_y = abs(map_trans_diff.y());
+  // const float map_trans_diff_x = abs(map_trans_diff.x());
+  // const float map_trans_diff_y = abs(map_trans_diff.y());
   const float abs_angle_diff = abs(dtheta_odom);
 
   // Add noise to x, y, and theta based on movement in that dimension
-  const float translation_noise_x = rng_.Gaussian(0.0, k1*map_trans_diff_x + k2*abs_angle_diff);
-  const float translation_noise_y = rng_.Gaussian(0.0, k1*map_trans_diff_y + k2*abs_angle_diff);
+  // const float translation_noise_x = rng_.Gaussian(0.0, k1*map_trans_diff_x + k2*abs_angle_diff);
+  // const float translation_noise_y = rng_.Gaussian(0.0, k1*map_trans_diff_y + k2*abs_angle_diff);
+  const float translation_noise_x = rng_.Gaussian(0.0, k1*map_trans_diff.norm() + k2*abs_angle_diff);
+  const float translation_noise_y = rng_.Gaussian(0.0, k1*map_trans_diff.norm() + k2*abs_angle_diff);
   const float rotation_noise = rng_.Gaussian(0.0, k3*map_trans_diff.norm() + k4*abs_angle_diff);
   particle.loc += map_trans_diff + Vector2f(translation_noise_x, translation_noise_y);
   particle.angle += dtheta_odom + rotation_noise;
