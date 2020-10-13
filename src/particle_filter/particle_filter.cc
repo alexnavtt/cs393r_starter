@@ -229,13 +229,14 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_min,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
-  // Since the range of weights is (-inf,0] we have to initialize max at -inf
-  max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
 
   const float dist_since_last_update = (prev_odom_loc_ - last_update_loc_).norm();
   // If we've moved at least 0.1m but haven't moved over 1m (filters out new initialization and timing errors)
-  // if (dist_since_last_update > 0.1 and dist_since_last_update < 1.0) {
-  if (dist_since_last_update < 1.0) {
+  if (dist_since_last_update > 0.1 and dist_since_last_update < 1.0) {
+  // if (dist_since_last_update < 1.0) {
+
+    // Since the range of weights is (-inf,0] we have to initialize max at -inf
+    max_log_particle_weight_ = -std::numeric_limits<float>::infinity();
     // Update all particle weights and find the maximum weight
     for (auto &particle : particles_)
     {
