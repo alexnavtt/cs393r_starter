@@ -27,6 +27,7 @@
 #include "shared/math/line2d.h"
 #include "shared/util/random.h"
 #include "vector_map/vector_map.h"
+#include "ros/ros.h"
 
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
@@ -36,13 +37,13 @@ namespace particle_filter {
 struct Particle {
   Eigen::Vector2f loc;
   float angle;
-  double weight;
+  double log_weight; // changed this to log weight - Alex
 };
 
 class ParticleFilter {
  public:
   // Default Constructor.
-   ParticleFilter();
+  ParticleFilter();
 
   // Observe a new laser scan.
   void ObserveLaser(const std::vector<float>& ranges,
@@ -60,11 +61,16 @@ class ParticleFilter {
                   const Eigen::Vector2f& loc,
                   const float angle);
 
+  void ResetOdomVariables(const Eigen::Vector2f loc, const float angle);
+
   // Return the list of particles.
   void GetParticles(std::vector<Particle>* particles) const;
 
   // Get robot's current location.
   void GetLocation(Eigen::Vector2f* loc, float* angle) const;
+
+  // Update a particle's location given current and last odom
+  void UpdateParticleLocation(Eigen::Vector2f map_trans_diff, float dtheta_odom, Particle* p_ptr);
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,
@@ -86,6 +92,9 @@ class ParticleFilter {
                               float angle_min,
                               float angle_max,
                               std::vector<Eigen::Vector2f>* scan);
+  
+  Eigen::Vector2f Map2BaseLink(const Eigen::Vector2f& point, const Eigen::Vector2f& loc, const float angle);
+  Eigen::Vector2f OdomVec2Map(const Eigen::Vector2f odom_vec);
 
  private:
 
@@ -102,6 +111,15 @@ class ParticleFilter {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+  float init_offset_angle_;
+
+  // Observation Likelihood Model
+  float var_obs_;   // variance of the gaussian portion of the model
+  float d_short_;
+  float d_long_;
+
+  // Resampling variables
+  float max_log_particle_weight_;
 };
 }  // namespace slam
 
