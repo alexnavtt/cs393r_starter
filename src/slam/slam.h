@@ -30,6 +30,57 @@
 
 namespace slam {
 
+struct Pose{
+  Eigen::Vector2f loc;
+  float angle;
+};
+
+struct LaserScan{
+  std::vector<float> ranges;
+  float range_min;
+  float range_max;
+  float angle_min;
+  float angle_max;
+};
+
+class CellGrid{
+public:
+  Eigen::Vector2f origin;   // Location of the center of the lower left block
+  float resolution;         // Size of grid blocks in meters (grid blocks are square)
+  int width;                // Width of the grid in cells
+  int height;               // Height of the grid in cells
+  Pose reference_pose;      // The original pose that resulted in the current grid
+
+  std::vector< std::vector<float> > grid;   // Grid of log-likelihoods
+
+  // Retrieve a grid value using a location
+  float &at(const Eigen::Vector2f v){
+    Eigen::Vector2f offset = v - origin;
+    int dx = offset.x() / resolution;
+    int dy = offset.y() / resolution;
+    return(grid[dx][dy]);
+  }
+
+  // Retrieve a grid value using an index
+  std::vector<float> &operator [](int i){
+    return(grid[i]);
+  }
+
+  // Constructors
+  CellGrid(){}
+  CellGrid(Eigen::Vector2f ORIGIN, float RES, float WIDTH, float HEIGHT){
+    origin = ORIGIN;
+    resolution = RES;
+    width = ceil(WIDTH/RES);
+    height = ceil(HEIGHT/RES);
+    grid.resize(width);
+    for(auto &row : grid) row.resize(height);
+  }
+};
+
+
+
+
 class SLAM {
  public:
   // Default Constructor.
@@ -52,13 +103,30 @@ class SLAM {
   // Get latest robot pose.
   void GetPose(Eigen::Vector2f* loc, float* angle) const;
 
+  // Convert a laser scan to a point cloud
+  std::vector<Eigen::Vector2f> Scan2MapCloud(LaserScan s) const;
+  std::vector<Eigen::Vector2f> Scan2BaseLinkCloud(LaserScan s) const;
+
+  // Get distribution of possible robot poses
+  std::vector<Pose> ApplyMotionModel(Eigen::Vector2f loc, float angle);
+
+  // Apply Correlative Scan Matching Algorithm
+  void ApplyCSM();
+
  private:
 
   // Previous odometry-reported locations.
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+
+  // Storing scans
+  std::vector<LaserScan> stored_scans_;
+
+  // Rasterized grid
+  CellGrid prob_grid_;
 };
+
 }  // namespace slam
 
 #endif   // SRC_SLAM_H_

@@ -52,7 +52,9 @@ namespace slam {
 SLAM::SLAM() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
-    odom_initialized_(false) {}
+    odom_initialized_(false),
+    prob_grid_({-30,-30}, 0.05, 60, 60)   // Grid starting at (-30, -30) in the base_link frame with width 60 and height 60 and 0.05m per cell
+{}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
   // Return the latest pose estimate of the robot.
@@ -79,6 +81,24 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
   }
   // Keep track of odometry to estimate how far the robot has moved between 
   // poses.
+
+  /* 
+  --------- Pseudo-Code -----------
+
+  if (moved enough) then
+    generate possible locations
+    
+    for (each location) do
+      sum likelihoods from rasterized grid
+      record most likely pose
+    end
+
+    update grid with most recent scan data
+    update all previous poses? (not too sure about this one)
+  end
+
+  ----------------------------------
+  */
 }
 
 vector<Vector2f> SLAM::GetMap() {
