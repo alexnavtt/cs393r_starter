@@ -40,7 +40,8 @@ INCLUDE_DIRECTORIES(src)
 
 ROSBUILD_ADD_EXECUTABLE(slam
                         src/slam/slam_main.cc
-                        src/slam/slam.cc)
+                        src/slam/slam.cc
+                        src/slam/CellGrid.cpp)
 TARGET_LINK_LIBRARIES(slam shared_library ${libs})
 
 

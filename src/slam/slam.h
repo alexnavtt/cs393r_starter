@@ -25,6 +25,9 @@
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 
+// Custom Class
+#include "CellGrid.h"
+
 #ifndef SRC_SLAM_H_
 #define SRC_SLAM_H_
 
@@ -42,44 +45,6 @@ struct LaserScan{
   float angle_min;
   float angle_max;
 };
-
-class CellGrid{
-public:
-  Eigen::Vector2f origin;   // Location of the center of the lower left block
-  float resolution;         // Size of grid blocks in meters (grid blocks are square)
-  int width;                // Width of the grid in cells
-  int height;               // Height of the grid in cells
-  Pose reference_pose;      // The original pose that resulted in the current grid
-
-  std::vector< std::vector<float> > grid;   // Grid of log-likelihoods
-
-  // Retrieve a grid value using a location
-  float &at(const Eigen::Vector2f v){
-    Eigen::Vector2f offset = v - origin;
-    int dx = offset.x() / resolution;
-    int dy = offset.y() / resolution;
-    return(grid[dx][dy]);
-  }
-
-  // Retrieve a grid value using an index
-  std::vector<float> &operator [](int i){
-    return(grid[i]);
-  }
-
-  // Constructors
-  CellGrid(){}
-  CellGrid(Eigen::Vector2f ORIGIN, float RES, float WIDTH, float HEIGHT){
-    origin = ORIGIN;
-    resolution = RES;
-    width = ceil(WIDTH/RES);
-    height = ceil(HEIGHT/RES);
-    grid.resize(width);
-    for(auto &row : grid) row.resize(height);
-  }
-};
-
-
-
 
 class SLAM {
  public:
