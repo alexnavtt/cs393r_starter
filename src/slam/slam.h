@@ -56,7 +56,8 @@ class SLAM {
                     float range_min,
                     float range_max,
                     float angle_min,
-                    float angle_max);
+                    float angle_max,
+                    amrl_msgs::VisualizationMsg &viz);
 
   // Observe new odometry-reported location.
   void ObserveOdometry(const Eigen::Vector2f& odom_loc,
@@ -69,11 +70,14 @@ class SLAM {
   void GetPose(Eigen::Vector2f* loc, float* angle) const;
 
   // Convert a laser scan to a point cloud
-  std::vector<Eigen::Vector2f> Scan2MapCloud(LaserScan s) const;
-  std::vector<Eigen::Vector2f> Scan2BaseLinkCloud(LaserScan s) const;
+  std::vector<Eigen::Vector2f> Scan2MapCloud(const LaserScan &s) const;
+  std::vector<Eigen::Vector2f> Scan2BaseLinkCloud(const LaserScan &s) const;
 
   // Get distribution of possible robot poses
   std::vector<Pose> ApplyMotionModel(Eigen::Vector2f loc, float angle);
+
+  // Store a scan as a prior in the probability grid
+  void applyScan(LaserScan s);
 
   // Apply Correlative Scan Matching Algorithm
   void ApplyCSM();
@@ -86,7 +90,8 @@ class SLAM {
   bool odom_initialized_;
 
   // Storing scans
-  std::vector<LaserScan> stored_scans_;
+  LaserScan current_scan_;
+  LaserScan last_scan_;
 
   // Rasterized grid
   CellGrid prob_grid_;

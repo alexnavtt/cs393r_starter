@@ -7,6 +7,8 @@
 
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
+#include "amrl_msgs/VisualizationMsg.h"
+#include "visualization/visualization.h"
 
 class CellGrid{
 private:
@@ -14,6 +16,7 @@ private:
   float resolution_;         // Size of grid blocks in meters (grid blocks are square)
   int width_;                // Width of the grid in cells
   int height_;               // Height of the grid in cells
+  float min_cost_;           // Minimum allowable value of log-likelihood
 
   std::vector< std::vector<float> > grid_;   // Grid of log-likelihoods
 
@@ -41,10 +44,12 @@ public:
   std::vector<float> &operator [](int i);
 
   // Check if a cell is within grid boundaries
-  bool checkXLim(int xi);
-  bool checkYLim(int yi);
+  bool checkXLim(int xi) const;
+  bool checkYLim(int yi) const;
 
-  void applyLaserPoint(Eigen::Vector2f loc, float std_dev, float cutoff); 
+  void clear();
+  void applyLaserPoint(Eigen::Vector2f loc, float std_dev); 
+  void showGrid(amrl_msgs::VisualizationMsg &viz);
 };
 
 #endif

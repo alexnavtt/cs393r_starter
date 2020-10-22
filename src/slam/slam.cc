@@ -50,62 +50,112 @@ using vector_map::VectorMap;
 namespace slam {
 
 SLAM::SLAM() :
-    prev_odom_loc_(0, 0),
-    prev_odom_angle_(0),
-    odom_initialized_(false),
-    prob_grid_({-30,-30}, 0.05, 60, 60)   // Grid starting at (-30, -30) in the base_link frame with width 60 and height 60 and 0.05m per cell
+		prev_odom_loc_(0, 0),
+		prev_odom_angle_(0),
+		odom_initialized_(false),
+		prob_grid_({-30,-30}, 0.05, 60, 60)   // Grid starting at (-30, -30) in the base_link frame with width 60 and height 60 and 0.05m per cell
 {}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
-  // Return the latest pose estimate of the robot.
-  *loc = Vector2f(0, 0);
-  *angle = 0;
+	// Return the latest pose estimate of the robot.
+	*loc = Vector2f(0, 0);
+	*angle = 0;
+}
+
+// Done by Alex
+// Returns a point cloud in the base-link frame
+vector<Vector2f> SLAM::Scan2BaseLinkCloud(const LaserScan &s) const{
+	vector<Vector2f> pointcloud(s.ranges.size());
+	float angle_diff = (s.angle_max - s.angle_min) / s.ranges.size();
+
+	float angle = s.angle_min;
+	for (size_t i = 0; i < s.ranges.size(); i++){
+		pointcloud[i] = Vector2f(s.ranges[i]*cos(angle) + 0.2, s.ranges[i]*sin(angle));;
+		angle += angle_diff;
+	}
+
+	return pointcloud;
+}
+
+// Done by Alex
+// Populates the grid with probabilities due to a laser scan
+void SLAM::applyScan(LaserScan scan){
+	vector<Vector2f> points = Scan2BaseLinkCloud(scan);
+	prob_grid_.clear();
+
+	int count = 0;
+	for (const Vector2f &p : points){
+		if (count != 5){
+			count++;
+			continue;
+		}
+		count = 0;
+		prob_grid_.applyLaserPoint(p, 0.03);
+	}
 }
 
 void SLAM::ObserveLaser(const vector<float>& ranges,
-                        float range_min,
-                        float range_max,
-                        float angle_min,
-                        float angle_max) {
-  // A new laser scan has been observed. Decide whether to add it as a pose
-  // for SLAM. If decided to add, align it to the scan from the last saved pose,
-  // and save both the scan and the optimized pose.
+                                     float range_min,
+                                     float range_max,
+                                     float angle_min,
+                                     float angle_max,
+                                     amrl_msgs::VisualizationMsg &viz) {
+	// A new laser scan has been observed. Decide whether to add it as a pose
+	// for SLAM. If decided to add, align it to the scan from the last saved pose,
+	// and save both the scan and the optimized pose.
+
+	// Store the scan as our most recent scan
+	current_scan_ = LaserScan({ranges, range_min, range_max, angle_min, angle_max});
+
+	// This is test code, not permanent - Alex
+	static bool init = false;
+	static double last_time = GetMonotonicTime();
+	double now = GetMonotonicTime();
+
+	if ((now - last_time) > 0.0){
+		applyScan(current_scan_);
+
+		last_time = GetMonotonicTime();
+		last_scan_ = current_scan_;
+		init = true;
+	}
+	if (init) prob_grid_.showGrid(viz);
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
-  if (!odom_initialized_) {
-    prev_odom_angle_ = odom_angle;
-    prev_odom_loc_ = odom_loc;
-    odom_initialized_ = true;
-    return;
-  }
-  // Keep track of odometry to estimate how far the robot has moved between 
-  // poses.
+	if (!odom_initialized_) {
+		prev_odom_angle_ = odom_angle;
+		prev_odom_loc_ = odom_loc;
+		odom_initialized_ = true;
+		return;
+	}
+	// Keep track of odometry to estimate how far the robot has moved between 
+	// poses.
 
-  /* 
-  --------- Pseudo-Code -----------
+	/* 
+	--------- Pseudo-Code -----------
 
-  if (moved enough) then
-    generate possible locations
-    
-    for (each location) do
-      sum likelihoods from rasterized grid
-      record most likely pose
-    end
+	if (moved enough) then
+		generate possible locations
+		
+		for (each location) do
+			sum likelihoods from rasterized grid
+			record most likely pose
+		end
 
-    update grid with most recent scan data
-    update all previous poses? (not too sure about this one)
-  end
+		update grid with most recent scan data
+		update all previous poses? (not too sure about this one)
+	end
 
-  ----------------------------------
-  */
+	----------------------------------
+	*/
 }
 
 vector<Vector2f> SLAM::GetMap() {
-  vector<Vector2f> map;
-  // Reconstruct the map as a single aligned point cloud from all saved poses
-  // and their respective scans.
-  return map;
+	vector<Vector2f> map;
+	// Reconstruct the map as a single aligned point cloud from all saved poses
+	// and their respective scans.
+	return map;
 }
 
 }  // namespace slam

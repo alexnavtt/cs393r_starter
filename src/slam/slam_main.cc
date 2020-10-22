@@ -77,6 +77,7 @@ slam::SLAM slam_;
 ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 VisualizationMsg vis_msg_;
+VisualizationMsg grid_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
 
 void InitializeMsgs() {
@@ -85,6 +86,7 @@ void InitializeMsgs() {
   header.seq = 0;
 
   vis_msg_ = visualization::NewVisualizationMessage("map", "slam");
+  grid_msg_ = visualization::NewVisualizationMessage("base_link", "slam_local");
 }
 
 void PublishMap() {
@@ -103,6 +105,7 @@ void PublishMap() {
     visualization::DrawPoint(p, 0xC0C0C0, vis_msg_);
   }
   visualization_publisher_.publish(vis_msg_);
+  visualization_publisher_.publish(grid_msg_);
 }
 
 void PublishPose() {
@@ -121,12 +124,14 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     printf("Laser t=%f\n", msg.header.stamp.toSec());
   }
   last_laser_msg_ = msg;
+  ClearVisualizationMsg(grid_msg_);
   slam_.ObserveLaser(
       msg.ranges,
       msg.range_min,
       msg.range_max,
       msg.angle_min,
-      msg.angle_max);
+      msg.angle_max,
+      grid_msg_);
   PublishMap();
   PublishPose();
 }
