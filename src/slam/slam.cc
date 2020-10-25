@@ -35,6 +35,8 @@
 #include "vector_map/vector_map.h"
 
 using namespace math_util;
+using math_util::AngleDiff;
+using math_util::RadToDeg;
 using Eigen::Affine2f;
 using Eigen::Rotation2Df;
 using Eigen::Translation2f;
@@ -46,6 +48,10 @@ using std::string;
 using std::swap;
 using std::vector;
 using vector_map::VectorMap;
+
+namespace{
+	bool make_new_raster_ = false;
+}
 
 namespace slam {
 
@@ -104,22 +110,27 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	// for SLAM. If decided to add, align it to the scan from the last saved pose,
 	// and save both the scan and the optimized pose.
 
-	// Store the scan as our most recent scan
-	current_scan_ = LaserScan({ranges, range_min, range_max, angle_min, angle_max});
+	if (make_new_raster_){
+		// Store the scan as our most recent scan
+		LaserScan laser_scan = LaserScan({ranges, range_min, range_max, angle_min, angle_max});
+		applyScan(laser_scan);
+		prob_grid_.showGrid(viz);
+		make_new_raster_ = false;
+	}
 
 	// This is test code, not permanent - Alex
-	static bool init = false;
-	static double last_time = GetMonotonicTime();
-	double now = GetMonotonicTime();
+	// static bool init = false;
+	// static double last_time = GetMonotonicTime();
+	// double now = GetMonotonicTime();
 
-	if ((now - last_time) > 0.0){
-		applyScan(current_scan_);
+	// if ((now - last_time) > 0.0){
+	// 	applyScan(current_scan_);
 
-		last_time = GetMonotonicTime();
-		last_scan_ = current_scan_;
-		init = true;
-	}
-	if (init) prob_grid_.showGrid(viz);
+	// 	last_time = GetMonotonicTime();
+	// 	last_scan_ = current_scan_;
+	// 	init = true;
+	// }
+	// if (init) prob_grid_.showGrid(viz);
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
@@ -129,8 +140,19 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 		odom_initialized_ = true;
 		return;
 	}
-	// Keep track of odometry to estimate how far the robot has moved between 
-	// poses.
+	// Keep track of odometry to estimate how far the robot has moved between poses.
+
+	float dist_traveled = (odom_loc - prev_odom_loc_).norm();
+	float angle_diff = RadToDeg(std::abs(AngleDiff(odom_angle, prev_odom_angle_)));
+
+	if (dist_traveled > 0.5 or angle_diff > 30)
+	{
+		cout << "New raster!" << endl;
+		// Next scan will be rasterized and pose will be updated
+		make_new_raster_ = true;
+		prev_odom_angle_ = odom_angle;
+		prev_odom_loc_ = odom_loc;
+	}
 
 	/* 
 	--------- Pseudo-Code -----------

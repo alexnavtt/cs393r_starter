@@ -117,8 +117,13 @@ void CellGrid::applyLaserPoint(Vector2f loc, float std_dev){
 }
 
 void CellGrid::showGrid(amrl_msgs::VisualizationMsg &viz){
+	// Not sure if this is necessary - Mark
+	visualization::ClearVisualizationMsg(viz);
+	
 	int x_count = 0;
 	int y_count = 0;
+
+	cout << "Drawing grid!" << endl;
 
 	for (int xi = 0; xi < width_; xi++){
 

@@ -90,8 +90,8 @@ class SLAM {
   bool odom_initialized_;
 
   // Storing scans
-  LaserScan current_scan_;
-  LaserScan last_scan_;
+  // LaserScan current_scan_;
+  // LaserScan last_scan_;
 
   // Rasterized grid
   CellGrid prob_grid_;
