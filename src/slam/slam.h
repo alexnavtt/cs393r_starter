@@ -74,13 +74,13 @@ class SLAM {
   std::vector<Eigen::Vector2f> Scan2BaseLinkCloud(const LaserScan &s) const;
 
   // Get distribution of possible robot poses
-  std::vector<Pose> ApplyMotionModel(Eigen::Vector2f loc, float angle);
+  void ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_traveled, float angle_diff);
 
   // Store a scan as a prior in the probability grid
   void applyScan(LaserScan s);
 
   // Apply Correlative Scan Matching Algorithm
-  void ApplyCSM();
+  Pose ApplyCSM();
 
  private:
 
@@ -90,8 +90,10 @@ class SLAM {
   bool odom_initialized_;
 
   // Storing scans
-  // LaserScan current_scan_;
+  LaserScan current_scan_;
   // LaserScan last_scan_;
+
+  std::vector<Pose> possible_poses_;
 
   // Rasterized grid
   CellGrid prob_grid_;
