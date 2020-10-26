@@ -134,7 +134,6 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	if (prob_grid_init_) prob_grid_.showGrid(viz);
 
 	// This is test code, not permanent - Alex
-	// static bool init = false;
 	// static double last_time = GetMonotonicTime();
 	// double now = GetMonotonicTime();
 
@@ -144,8 +143,6 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	// 	last_time = GetMonotonicTime();
 	// 	last_scan_ = current_scan_;
 	// 	init = true;
-	// }
-	// if (init) prob_grid_.showGrid(viz);
 }
 
 Pose SLAM::ApplyCSM() {
