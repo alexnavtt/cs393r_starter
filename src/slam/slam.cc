@@ -110,16 +110,18 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	// for SLAM. If decided to add, align it to the scan from the last saved pose,
 	// and save both the scan and the optimized pose.
 
+	static bool init = false;
+
 	if (make_new_raster_){
 		// Store the scan as our most recent scan
 		LaserScan laser_scan = LaserScan({ranges, range_min, range_max, angle_min, angle_max});
 		applyScan(laser_scan);
-		prob_grid_.showGrid(viz);
+		// prob_grid_.showGrid(viz);
 		make_new_raster_ = false;
+		init = true;
 	}
 
 	// This is test code, not permanent - Alex
-	// static bool init = false;
 	// static double last_time = GetMonotonicTime();
 	// double now = GetMonotonicTime();
 
@@ -130,7 +132,7 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	// 	last_scan_ = current_scan_;
 	// 	init = true;
 	// }
-	// if (init) prob_grid_.showGrid(viz);
+	if (init) prob_grid_.showGrid(viz);
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
