@@ -49,21 +49,16 @@ using std::swap;
 using std::vector;
 using vector_map::VectorMap;
 
-// NOTE: Should move these to header file eventually
-namespace{
-	// Set to true to get lookup table at starting position
-	bool update_scan_ = true;
-	bool prob_grid_init_ = false;
-}
-
 namespace slam {
 
 SLAM::SLAM() :
 		prev_odom_loc_(0, 0),
 		prev_odom_angle_(0),
 		odom_initialized_(false),
-		// Grid starting at (-30, -30) in the base_link frame with width 60 and height 60 and 0.05m per cell
-		prob_grid_({-30,-30}, 0.05, 60, 60)
+		update_scan_(true),
+		// Grid starting at (-10, -10) in the base_link frame with width 20 and height 20 and 0.05m per cell
+		prob_grid_({-10,-10}, 0.05, 20, 20),
+		prob_grid_init_(false)
 {}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
@@ -74,37 +69,40 @@ void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
 
 // Done by Alex
 // Returns a point cloud in the base-link frame
-vector<Vector2f> SLAM::Scan2BaseLinkCloud(const LaserScan &s) const{
-	vector<Vector2f> pointcloud(s.ranges.size());
-	float angle_diff = (s.angle_max - s.angle_min) / s.ranges.size();
+vector<Vector2f>* SLAM::Scan2BaseLinkCloud(const LaserScan &s) const{
+	// I'm assuming that our laser scan will never change shape here - Alex
+	static vector<Vector2f> pointcloud(s.ranges.size());
+	static float angle_diff = (s.angle_max - s.angle_min) / s.ranges.size();
 
 	float angle = s.angle_min;
 	for (size_t i = 0; i < s.ranges.size(); i++){
-		pointcloud[i] = Vector2f(s.ranges[i]*cos(angle) + 0.2, s.ranges[i]*sin(angle));;
+		pointcloud[i] = Vector2f(s.ranges[i]*cos(angle) + 0.2, s.ranges[i]*sin(angle));
 		angle += angle_diff;
 	}
 
-	return pointcloud;
+	// FYI: Returning a pointer is only valid for a static variable or a heap allocated variable (i.e. "new" variable) - Alex
+	return &pointcloud;
 }
 
 // Done by Alex
 // Populates the grid with probabilities due to a laser scan
 void SLAM::applyScan(LaserScan scan){
-	vector<Vector2f> points = Scan2BaseLinkCloud(scan);
+	const vector<Vector2f>* points = Scan2BaseLinkCloud(scan);
 	prob_grid_.clear();
 
 	int count = 0;
-	for (const Vector2f &p : points){
+	for (const Vector2f &p : *points){
 		if (count != 5){
 			count++;
 			continue;
 		}
 		count = 0;
-		prob_grid_.applyLaserPoint(p, 0.03);
+		prob_grid_.applyLaserPoint(p, 0.01);
 	}
 	prob_grid_init_ = true;
 }
 
+// Done by Mark
 void SLAM::ObserveLaser(const vector<float>& ranges,
                                      float range_min,
                                      float range_max,
@@ -119,12 +117,12 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	// function from saving the laser scan each time it's called, which would
 	// probably slow things down
 	if (update_scan_){
-		const LaserScan current_scan_ = LaserScan({ranges, range_min, range_max, angle_min, angle_max});
+		current_scan_ = LaserScan({ranges, range_min, range_max, angle_min, angle_max});
 		if (prob_grid_init_)
 		{
 			// Transform the current scan centered around possible poses from
 			// motion model to find best fit with lookup table from previous scan
-			ApplyCSM();
+			ApplyCSM(current_scan_);
 		}
 		// Get lookup table, preparing for next scan
 		applyScan(current_scan_);
@@ -132,28 +130,40 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 		update_scan_ = false;
 	}
 	if (prob_grid_init_) prob_grid_.showGrid(viz);
-
-	// This is test code, not permanent - Alex
-	// static double last_time = GetMonotonicTime();
-	// double now = GetMonotonicTime();
-
-	// if ((now - last_time) > 0.0){
-	// 	applyScan(current_scan_);
-
-	// 	last_time = GetMonotonicTime();
-	// 	last_scan_ = current_scan_;
-	// 	init = true;
 }
 
-Pose SLAM::ApplyCSM() {
-	// At this point, we have the lookup table (prob_grid_), the 'voxel cube' of poses
-	// from our motion model (possible_poses_), and the most recent scan (current_scan_).
-	// For each possible current pose, transform all the points back to the previous 
-	// pose and compare to the lookup table to arrive at the MLE of the current pose.
-	// NOTE: Transforming it back will require more inputs than just global variables, but
-	// I'll let someone else figure that out :)
-	Pose test_pose = {{0,0}, 0};
-	return test_pose;
+// Done by Alex
+Pose SLAM::ApplyCSM(LaserScan scan) {
+	float max_cost = -std::numeric_limits<float>::infinity();
+	Pose best_pose;
+
+	vector<Vector2f>* base_link_scan = Scan2BaseLinkCloud(scan);
+
+	for (const Pose &pose : possible_poses_){
+		float pose_cost = 0.0;
+
+		// Transform laser scan to last pose's base_link frame
+		// = ConnorsFunction();
+
+		// Loop through laser points in this scan and add up the log likelihoods
+		for (const Vector2f &loc : *base_link_scan){
+			try{
+				pose_cost += prob_grid_.atLoc(loc);
+			}catch(std::out_of_range &e){
+				cout << "Scan has no overlap, skipping" << endl;
+				continue;
+			}
+		}
+
+		// Account for motion model probability here (idk how just yet)
+
+		if (pose_cost > max_cost){
+			best_pose = pose;
+			max_cost = pose_cost;
+		}
+	}
+
+	return best_pose;
 }
 
 // untested
@@ -214,24 +224,6 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 		prev_odom_angle_ = odom_angle;
 		prev_odom_loc_ = odom_loc;
 	}
-
-	/* 
-	--------- Pseudo-Code -----------
-
-	if (moved enough) then
-		generate possible locations
-		
-		for (each location) do
-			sum likelihoods from rasterized grid
-			record most likely pose
-		end
-
-		update grid with most recent scan data
-		update all previous poses? (not too sure about this one)
-	end
-
-	----------------------------------
-	*/
 }
 
 vector<Vector2f> SLAM::GetMap() {

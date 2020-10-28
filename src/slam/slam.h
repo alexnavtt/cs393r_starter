@@ -70,8 +70,8 @@ class SLAM {
   void GetPose(Eigen::Vector2f* loc, float* angle) const;
 
   // Convert a laser scan to a point cloud
-  std::vector<Eigen::Vector2f> Scan2MapCloud(const LaserScan &s) const;
-  std::vector<Eigen::Vector2f> Scan2BaseLinkCloud(const LaserScan &s) const;
+  std::vector<Eigen::Vector2f>* Scan2MapCloud(const LaserScan &s) const;
+  std::vector<Eigen::Vector2f>* Scan2BaseLinkCloud(const LaserScan &s) const;
 
   // Get distribution of possible robot poses
   void ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_traveled, float angle_diff);
@@ -80,7 +80,7 @@ class SLAM {
   void applyScan(LaserScan s);
 
   // Apply Correlative Scan Matching Algorithm
-  Pose ApplyCSM();
+  Pose ApplyCSM(LaserScan s);
 
  private:
 
@@ -90,13 +90,14 @@ class SLAM {
   bool odom_initialized_;
 
   // Storing scans
-  LaserScan current_scan_;
-  // LaserScan last_scan_;
+  LaserScan current_scan_;   // Current scan for SLAM algorithm to use
+  bool update_scan_;         // Flag for whether or not to update the SLAM map
 
   std::vector<Pose> possible_poses_;
 
   // Rasterized grid
   CellGrid prob_grid_;
+  bool prob_grid_init_;   // Flag to fix vizualization bug where the entire grid is shown on startup
 };
 
 }  // namespace slam
