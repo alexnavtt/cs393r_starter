@@ -50,6 +50,15 @@ using std::swap;
 using std::vector;
 using vector_map::VectorMap;
 
+// ====================  Tunable Parameters =================
+//
+// -> prob grid size (currently 20mx20m at 0.05m per cell)
+// -> prob_grid_.applyLaserPoint std_dev (currently 0.02m)
+// -> motion model resolution (currently 10)
+// -> motion model k values	(currently 0.2, 0.02, 0.05, 0.1)
+//
+// ==========================================================
+
 namespace slam {
 
 SLAM::SLAM() :
@@ -93,14 +102,8 @@ void SLAM::applyScan(LaserScan scan){
 	const vector<Vector2f>* points = Scan2BaseLinkCloud(scan);
 	prob_grid_.clear();
 
-	int count = 0;
 	for (const Vector2f &p : *points){
-		if (count != 5){
-			count++;
-			continue;
-		}
-		count = 0;
-		prob_grid_.applyLaserPoint(p, 0.005);
+		prob_grid_.applyLaserPoint(p, 0.05);
 	}
 	prob_grid_init_ = true;
 }
@@ -111,22 +114,16 @@ Pose SLAM::ApplyCSM(LaserScan scan) {
 	Pose best_pose;
 
 	vector<Vector2f>* base_link_scan = Scan2BaseLinkCloud(scan);
-
-	int i = 0;
-	int j = 0;
+	
 	for (const Pose &pose : possible_poses_){
 		float pose_cost = 0.0;
 		
 		// Loop through laser points in this scan and add up the log likelihoods
 		for (const Vector2f &loc : *base_link_scan){
-			// Only test one in every 10 points
-			if (i != 20) {i++; continue;}
-			i = 0;
 
 			try{
 				// Transform laser scan to last pose's base_link frame
 				Vector2f mapped_loc = TransformNewScanToPrevPose(loc, pose);
-				cout << "Old loc (" << loc.x() << ", " << loc.y() << ")\tNew loc (" << mapped_loc.x() << ", " << mapped_loc.y() << ")" << endl;
 				pose_cost += prob_grid_.atLoc(mapped_loc);
 
 			}catch(std::out_of_range &e){
@@ -135,17 +132,10 @@ Pose SLAM::ApplyCSM(LaserScan scan) {
 			}
 		}
 
-		cout << "Pose Cost: " << pose_cost << endl;
-
-		// Account for motion model probability here (idk how just yet)
-
 		if (pose_cost > max_cost){
 			best_pose = pose;
 			max_cost = pose_cost;
-			cout << "New Pose: " << j << endl;
 		}
-
-		j++;
 	}
 
 	return best_pose;
@@ -219,22 +209,22 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 		}
 		// Get lookup table, preparing for next scan
 		applyScan(current_scan_);
-		prob_grid_.showGrid(viz);
+		// prob_grid_.showGrid(viz);
 		update_scan_ = false;
 	}
-	if (prob_grid_init_) prob_grid_.showGrid(viz);
+	// if (prob_grid_init_) prob_grid_.showGrid(viz);
 }
 
 // Done by Mark untested
 void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_traveled, float angle_diff) {
 	possible_poses_.clear();
-	int res = 10.0;	// number of entries will be res^3, so don't make it too high-res
+	int res = 11.0;	// number of entries will be res^3, so don't make it too high-res
 
 	// Noise constants to tune
-	const float k1 = 0.1;// 0.40;  // translation error per unit translation (suggested: 0.1-0.2)
-	const float k2 = 0.01;// 0.02;  // translation error per unit rotation    (suggested: 0.01)
-	const float k3 = 0.02;// 0.20;  // angular error per unit translation     (suggested: 0.02-0.1)
-	const float k4 = 0.05;// 0.40;  // angular error per unit rotation        (suggested: 0.05-0.2)
+	const float k1 = 0.2;// 0.40;  // translation error per unit translation (suggested: 0.1-0.2)
+	const float k2 = 0.02;// 0.02;  // translation error per unit rotation    (suggested: 0.01)
+	const float k3 = 0.1;// 0.20;  // angular error per unit translation     (suggested: 0.02-0.1)
+	const float k4 = 0.2;// 0.40;  // angular error per unit rotation        (suggested: 0.05-0.2)
 	// Introduce noise based on motion model
 	const float abs_angle_diff = abs(angle_diff);
 	const float x_stddev = k1*dist_traveled + k2*abs_angle_diff;
@@ -277,8 +267,6 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 	float angle_diff = AngleDiff(odom_angle, prev_odom_angle_);
 	float dist_traveled = odom_diff.norm();
 
-	cout << angle_diff << endl;
-
 	// Update current estimate of pose
 	current_pose_.loc = MLE_pose_.loc + R_odom2MLE_ * odom_diff;
 	current_pose_.angle = fmod(MLE_pose_.angle + angle_diff, 2*M_PI);
@@ -315,8 +303,8 @@ void SLAM::updateMap(Pose CSM_pose) {
 }
 
 vector<Vector2f> SLAM::GetMap() {
-	int jump_size = ceil(map_scans_.size() / 5000);
-	int N = std::min(int(map_scans_.size()), 5000);
+	int jump_size = ceil(map_scans_.size() / 10000);
+	int N = std::min(int(map_scans_.size()), 10000);
 	vector<Vector2f> output_vector(N);
 
 	for (int i = 0; i < N; i++){
