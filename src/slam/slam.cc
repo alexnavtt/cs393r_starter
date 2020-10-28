@@ -124,7 +124,8 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 		{
 			// Transform the current scan centered around possible poses from
 			// motion model to find best fit with lookup table from previous scan
-			ApplyCSM();
+			Pose CSM_pose = ApplyCSM();
+			updateMap(CSM_pose);
 		}
 		// Get lookup table, preparing for next scan
 		applyScan(current_scan_);
@@ -181,7 +182,7 @@ void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_travele
 		for (int y_i=0; y_i<res; y_i++)
 		{
 			float noise_y = y_stddev*(2*y_i/res-1);
-			for (int ang_i; ang_i<res; ang_i++)
+			for (int ang_i=0; ang_i<res; ang_i++)
 			{
 				float pose_ang = angle + ang_stddev*(2*ang_i/res-1);
 				float pose_x = loc.x() + noise_x*cos_ang - noise_y*sin_ang;
@@ -234,11 +235,26 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 	*/
 }
 
-vector<Vector2f> SLAM::GetMap() {
-	vector<Vector2f> map;
+void SLAM::updateMap(Pose CSM_pose) {
 	// Reconstruct the map as a single aligned point cloud from all saved poses
 	// and their respective scans.
-	return map;
+	const int num_ranges = current_scan_.ranges.size();
+	const float angle_increment = (current_scan_.angle_max - current_scan_.angle_min) / num_ranges;
+
+	// Transform scan ranges to pose frame
+	for(int i = 0; i<num_ranges; i++)
+	{
+		const float range_i = current_scan_.ranges[i];
+		const float angle_i = CSM_pose.angle + current_scan_.angle_min + angle_increment * i;
+		const float point_i_x = CSM_pose.loc.x() + range_i*cos(angle_i);
+		const float point_i_y = CSM_pose.loc.y() + range_i*sin(angle_i);
+		const Vector2f point_i(point_i_x, point_i_y);
+		map_scans_.push_back(point_i);
+	}
+}
+
+vector<Vector2f> SLAM::GetMap() {
+	return map_scans_;
 }
 
 }  // namespace slam

@@ -63,6 +63,8 @@ class SLAM {
   void ObserveOdometry(const Eigen::Vector2f& odom_loc,
                        const float odom_angle);
 
+  // Update map
+  void updateMap(Pose pose);
   // Get latest map.
   std::vector<Eigen::Vector2f> GetMap();
 
@@ -97,6 +99,9 @@ class SLAM {
 
   // Rasterized grid
   CellGrid prob_grid_;
+
+  // Map vector
+  std::vector<Eigen::Vector2f> map_scans_;
 };
 
 }  // namespace slam
