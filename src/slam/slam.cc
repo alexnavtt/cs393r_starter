@@ -59,7 +59,9 @@ SLAM::SLAM() :
 		// Grid starting at (-10, -10) in the base_link frame with width 20 and height 20 and 0.05m per cell
 		prob_grid_({-10,-10}, 0.05, 20, 20),
 		prob_grid_init_(false)
-{}
+{
+	map_scans_.reserve(1000000);
+}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
 	// Return the latest pose estimate of the robot.
@@ -167,7 +169,7 @@ Pose SLAM::ApplyCSM(LaserScan scan) {
 	return best_pose;
 }
 
-// untested
+// Done by Mark untested
 void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_traveled, float angle_diff) {
 	possible_poses_.clear();
 	int res = 20;	// number of entries will be res^3, so don't make it too high-res
@@ -204,6 +206,7 @@ void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_travele
 	}
 }
 
+// Done by Mark
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 	if (!odom_initialized_) {
 		prev_odom_angle_ = odom_angle;
@@ -227,6 +230,7 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 	}
 }
 
+// Done by Mark
 void SLAM::updateMap(Pose CSM_pose) {
 	// Reconstruct the map as a single aligned point cloud from all saved poses
 	// and their respective scans.
