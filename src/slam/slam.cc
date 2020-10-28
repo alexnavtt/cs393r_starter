@@ -41,6 +41,7 @@ using Eigen::Affine2f;
 using Eigen::Rotation2Df;
 using Eigen::Translation2f;
 using Eigen::Vector2f;
+using Eigen::Vector3f;
 using Eigen::Vector2i;
 using std::cout;
 using std::endl;
@@ -144,6 +145,46 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	// 	last_time = GetMonotonicTime();
 	// 	last_scan_ = current_scan_;
 	// 	init = true;
+}
+
+// Example of inputs
+// Vector2f test_scan(1.5, 1.5) ;
+// Pose test_pose = {{0.4,0.0},M_PI / 4.0};
+// or 
+// THIS MUST BE DONE BEFORE PASSING INTO THIS FCN
+// Pose odom_pose_cur = {odom_loc,odom_angle};
+Eigen::Vector2f SLAM::TransformNewScanToPrevPose(const Eigen::Vector2f scan_loc, Pose odom_pose_cur)
+
+{
+    // 1st Transform, hard-coded but that's ok
+    Affine2f H_Lidar2BaseCur = GetTransform({{0.2,0.0},0});
+
+    // 2nd Transformm takes in parameters from function call
+	// Uncomment if want to test with locally defined instances of previous loc and angle
+	// will need to remove _ from their use in trans_diff and angle_diff equations
+    // Vector2f prev_odom_loc = {0,0};
+    // float prev_odom_angle = M_PI / 4;
+    Vector2f odom_trans_diff = odom_pose_cur.loc - prev_odom_loc_;
+    float odom_angle_diff = AngleDiff(odom_pose_cur.angle, prev_odom_angle_);
+    Pose diff_pose = {odom_trans_diff,odom_angle_diff};
+    Affine2f H_BaseCur2BasePrev = GetTransform(diff_pose);
+
+    // Apply transformations to Scan Point
+    Vector3f Scan2Lidar_xyz(scan_loc.x(),scan_loc.y(),1) ;
+    Vector3f Scan2BasePrev_xyz = H_BaseCur2BasePrev*H_Lidar2BaseCur*Scan2Lidar_xyz;
+    Vector2f Scan2BasePrev(Scan2BasePrev_xyz.x(),Scan2BasePrev_xyz.y());
+    return Scan2BasePrev;
+}
+
+Eigen::Affine2f SLAM::GetTransform(Pose pose) {
+    // in radians
+    Rotation2Df R(pose.angle);
+    Vector2f Tr = pose.loc;
+    Affine2f H = Eigen::Affine2f::Identity();
+    H.rotate ( R ) ;
+    H.translate ( Tr ) ;
+    // cout << "H = " << endl << H.matrix() << endl;
+	return H;
 }
 
 Pose SLAM::ApplyCSM() {
