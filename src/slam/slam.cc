@@ -41,6 +41,7 @@ using Eigen::Affine2f;
 using Eigen::Rotation2Df;
 using Eigen::Translation2f;
 using Eigen::Vector2f;
+using Eigen::Vector3f;
 using Eigen::Vector2i;
 using std::cout;
 using std::endl;
@@ -65,8 +66,8 @@ SLAM::SLAM() :
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
 	// Return the latest pose estimate of the robot.
-	*loc = Vector2f(0, 0);
-	*angle = 0;
+	*loc = current_pose_.loc;
+	*angle = current_pose_.angle;
 }
 
 // Done by Alex
@@ -99,9 +100,97 @@ void SLAM::applyScan(LaserScan scan){
 			continue;
 		}
 		count = 0;
-		prob_grid_.applyLaserPoint(p, 0.01);
+		prob_grid_.applyLaserPoint(p, 0.005);
 	}
 	prob_grid_init_ = true;
+}
+
+// Done by Alex
+Pose SLAM::ApplyCSM(LaserScan scan) {
+	float max_cost = -std::numeric_limits<float>::infinity();
+	Pose best_pose;
+
+	vector<Vector2f>* base_link_scan = Scan2BaseLinkCloud(scan);
+
+	int i = 0;
+	int j = 0;
+	for (const Pose &pose : possible_poses_){
+		float pose_cost = 0.0;
+		
+		// Loop through laser points in this scan and add up the log likelihoods
+		for (const Vector2f &loc : *base_link_scan){
+			// Only test one in every 10 points
+			if (i != 20) {i++; continue;}
+			i = 0;
+
+			try{
+				// Transform laser scan to last pose's base_link frame
+				Vector2f mapped_loc = TransformNewScanToPrevPose(loc, pose);
+				cout << "Old loc (" << loc.x() << ", " << loc.y() << ")\tNew loc (" << mapped_loc.x() << ", " << mapped_loc.y() << ")" << endl;
+				pose_cost += prob_grid_.atLoc(mapped_loc);
+
+			}catch(std::out_of_range &e){
+				// cout << "Scan has no overlap, skipping" << endl;
+				continue;
+			}
+		}
+
+		cout << "Pose Cost: " << pose_cost << endl;
+
+		// Account for motion model probability here (idk how just yet)
+
+		if (pose_cost > max_cost){
+			best_pose = pose;
+			max_cost = pose_cost;
+			cout << "New Pose: " << j << endl;
+		}
+
+		j++;
+	}
+
+	return best_pose;
+}
+
+// Example of inputs
+// Vector2f test_scan(1.5, 1.5) ;
+// Pose test_pose = {{0.4,0.0},M_PI / 4.0};
+// or 
+// THIS MUST BE DONE BEFORE PASSING INTO THIS FCN
+// Pose odom_pose_cur = {odom_loc,odom_angle};
+Eigen::Vector2f SLAM::TransformNewScanToPrevPose(const Eigen::Vector2f scan_loc, Pose pose_cur)
+
+{
+    // 1st Transform, hard-coded but that's ok
+    // Affine2f H_Lidar2BaseCur = GetTransform({{0.2,0.0},0});
+    // Affine2f H_Lidar2BaseCur = Eigen::Affine2f::Identity();
+
+    // 2nd Transformm takes in parameters from function call
+	// Uncomment if want to test with locally defined instances of previous loc and angle
+	// will need to remove _ from their use in trans_diff and angle_diff equations
+    // Vector2f prev_odom_loc = {0,0};
+    // float prev_odom_angle = M_PI / 4;
+    Vector2f odom_trans_diff = pose_cur.loc - MLE_pose_.loc;
+    float odom_angle_diff = AngleDiff(pose_cur.angle, MLE_pose_.angle);
+    Pose diff_pose = {odom_trans_diff,odom_angle_diff};
+    Affine2f H_BaseCur2BasePrev = GetTransform(diff_pose);
+
+    // Apply transformations to Scan Point
+    Vector3f Scan2Lidar_xyz(scan_loc.x(),scan_loc.y(),1) ;
+    // Vector3f Scan2BasePrev_xyz = H_BaseCur2BasePrev*H_Lidar2BaseCur*Scan2Lidar_xyz;
+    Vector3f Scan2BasePrev_xyz = H_BaseCur2BasePrev*Scan2Lidar_xyz;
+    Vector2f Scan2BasePrev(Scan2BasePrev_xyz.x(),Scan2BasePrev_xyz.y());
+    return Scan2BasePrev;
+}
+
+Eigen::Affine2f SLAM::GetTransform(Pose pose) {
+    // in radians
+    Rotation2Df R(pose.angle);
+    Vector2f Tr = pose.loc;
+    Affine2f H = Eigen::Affine2f::Identity();
+    H.rotate ( R ) ;
+    H.translate ( Tr ) ;
+    // cout << "H = " << endl << H.matrix() << endl;
+	return H;
 }
 
 // Done by Mark
@@ -124,8 +213,9 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 		{
 			// Transform the current scan centered around possible poses from
 			// motion model to find best fit with lookup table from previous scan
-			Pose CSM_pose = ApplyCSM(current_scan_);
-			updateMap(CSM_pose);
+			MLE_pose_ = ApplyCSM(current_scan_);
+			updateMap(MLE_pose_);
+			R_odom2MLE_ = Eigen::Rotation2Df(MLE_pose_.angle - prev_odom_angle_);
 		}
 		// Get lookup table, preparing for next scan
 		applyScan(current_scan_);
@@ -135,54 +225,21 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 	if (prob_grid_init_) prob_grid_.showGrid(viz);
 }
 
-// Done by Alex
-Pose SLAM::ApplyCSM(LaserScan scan) {
-	float max_cost = -std::numeric_limits<float>::infinity();
-	Pose best_pose;
-
-	vector<Vector2f>* base_link_scan = Scan2BaseLinkCloud(scan);
-
-	for (const Pose &pose : possible_poses_){
-		float pose_cost = 0.0;
-
-		// Transform laser scan to last pose's base_link frame
-		// = ConnorsFunction();
-
-		// Loop through laser points in this scan and add up the log likelihoods
-		for (const Vector2f &loc : *base_link_scan){
-			try{
-				pose_cost += prob_grid_.atLoc(loc);
-			}catch(std::out_of_range &e){
-				cout << "Scan has no overlap, skipping" << endl;
-				continue;
-			}
-		}
-
-		// Account for motion model probability here (idk how just yet)
-
-		if (pose_cost > max_cost){
-			best_pose = pose;
-			max_cost = pose_cost;
-		}
-	}
-
-	return best_pose;
-}
-
 // Done by Mark untested
 void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_traveled, float angle_diff) {
 	possible_poses_.clear();
-	int res = 20;	// number of entries will be res^3, so don't make it too high-res
-	
+	int res = 10.0;	// number of entries will be res^3, so don't make it too high-res
+
 	// Noise constants to tune
-	const float k1 = 0.40;  // translation error per unit translation (suggested: 0.1-0.2)
-	const float k2 = 0.02;  // translation error per unit rotation    (suggested: 0.01)
-	const float k3 = 0.20;  // angular error per unit translation     (suggested: 0.02-0.1)
-	const float k4 = 0.40;  // angular error per unit rotation        (suggested: 0.05-0.2)
+	const float k1 = 0.1;// 0.40;  // translation error per unit translation (suggested: 0.1-0.2)
+	const float k2 = 0.01;// 0.02;  // translation error per unit rotation    (suggested: 0.01)
+	const float k3 = 0.02;// 0.20;  // angular error per unit translation     (suggested: 0.02-0.1)
+	const float k4 = 0.05;// 0.40;  // angular error per unit rotation        (suggested: 0.05-0.2)
 	// Introduce noise based on motion model
-	const float x_stddev = k1*dist_traveled + k2*angle_diff;
-	const float y_stddev = k1*dist_traveled + k2*angle_diff;
-	const float ang_stddev = k3*dist_traveled + k4*angle_diff;
+	const float abs_angle_diff = abs(angle_diff);
+	const float x_stddev = k1*dist_traveled + k2*abs_angle_diff;
+	const float y_stddev = k1*dist_traveled + k2*abs_angle_diff;
+	const float ang_stddev = k3*dist_traveled + k4*abs_angle_diff;
 	// Precalculate trig stuff for rotation
 	const float cos_ang = cos(angle);
 	const float sin_ang = sin(angle);
@@ -214,15 +271,23 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 		odom_initialized_ = true;
 		return;
 	}
+
 	// Keep track of odometry to estimate how far the robot has moved between poses.
+	Vector2f odom_diff = odom_loc - prev_odom_loc_;
+	float angle_diff = AngleDiff(odom_angle, prev_odom_angle_);
+	float dist_traveled = odom_diff.norm();
 
-	float dist_traveled = (odom_loc - prev_odom_loc_).norm();
-	float angle_diff = RadToDeg(std::abs(AngleDiff(odom_angle, prev_odom_angle_)));
+	cout << angle_diff << endl;
 
-	if (dist_traveled > 0.5 or angle_diff > 30)
+	// Update current estimate of pose
+	current_pose_.loc = MLE_pose_.loc + R_odom2MLE_ * odom_diff;
+	current_pose_.angle = fmod(MLE_pose_.angle + angle_diff, 2*M_PI);
+
+	if (dist_traveled > 0.5 or angle_diff > M_PI/6)
 	{
 		// updates possible_poses_
-		ApplyMotionModel(odom_loc, odom_angle, dist_traveled, angle_diff);
+		// ApplyMotionModel(odom_loc, odom_angle, dist_traveled, angle_diff);
+		ApplyMotionModel(current_pose_.loc, current_pose_.angle, dist_traveled, angle_diff);
 		// Save the current laser scan
 		update_scan_ = true;
 		prev_odom_angle_ = odom_angle;
@@ -250,7 +315,14 @@ void SLAM::updateMap(Pose CSM_pose) {
 }
 
 vector<Vector2f> SLAM::GetMap() {
-	return map_scans_;
+	int jump_size = ceil(map_scans_.size() / 5000);
+	int N = std::min(int(map_scans_.size()), 5000);
+	vector<Vector2f> output_vector(N);
+
+	for (int i = 0; i < N; i++){
+		output_vector[i] = map_scans_[i * jump_size];
+	}
+	return output_vector;
 }
 
 }  // namespace slam

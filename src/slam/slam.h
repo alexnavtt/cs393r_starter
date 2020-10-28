@@ -59,6 +59,12 @@ class SLAM {
                     float angle_max,
                     amrl_msgs::VisualizationMsg &viz);
 
+  // does what the name says it does
+  Eigen::Vector2f TransformNewScanToPrevPose(const Eigen::Vector2f scan_loc, Pose odom_pose_cur);
+
+  // Gets the Homogeneous Transform for use in MapNewScanToPrevPose
+  Eigen::Affine2f GetTransform(Pose pose);
+
   // Observe new odometry-reported location.
   void ObserveOdometry(const Eigen::Vector2f& odom_loc,
                        const float odom_angle);
@@ -90,6 +96,9 @@ class SLAM {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+  Eigen::Rotation2Df R_odom2MLE_;
+  Pose MLE_pose_;
+  Pose current_pose_;
 
   // Storing scans
   LaserScan current_scan_;   // Current scan for SLAM algorithm to use
