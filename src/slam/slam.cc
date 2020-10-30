@@ -230,7 +230,7 @@ void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_travele
 
 	// Noise constants to tune
 	const float k1 = 0.40;// 0.40;  // translation error per unit translation (suggested: 0.1-0.2)
-	const float k2 = 0.02;// 0.02;  // translation error per unit rotation    (suggested: 0.01)
+	const float k2 = 0.05;// 0.02;  // translation error per unit rotation    (suggested: 0.01)
 	const float k3 = 0.10;// 0.20;  // angular error per unit translation     (suggested: 0.02-0.1)
 	const float k4 = 0.40;// 0.40;  // angular error per unit rotation        (suggested: 0.05-0.2)
 	// Introduce noise based on motion model
