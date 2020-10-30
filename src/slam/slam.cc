@@ -52,12 +52,20 @@ using vector_map::VectorMap;
 
 // ====================  Tunable Parameters =================
 //
-// -> prob grid size (currently 20mx20m at 0.05m per cell)
-// -> prob_grid_.applyLaserPoint std_dev (currently 0.02m)
-// -> motion model resolution (currently 10)
-// -> motion model k values	(currently 0.2, 0.02, 0.05, 0.1)
+// -> prob_grid_.applyLaserPoint std_dev (currently 0.025m)
+// -> how many scans to use when measuring cost for CSM
+// -> motion model resolution (x, y , theta)
+// -> motion model k values
+// -> resample frequency (angular and linear)
 //
 // ==========================================================
+
+void trimScan(vector<Vector2f>* cloud, int offset_count){
+	for (size_t i = 0; i < cloud->size()/offset_count; i++){
+		(*cloud)[i] = (*cloud)[i*offset_count];
+	}
+	cloud->resize(cloud->size()/offset_count);
+}
 
 namespace slam {
 
@@ -65,9 +73,9 @@ SLAM::SLAM() :
 		prev_odom_loc_(0, 0),
 		prev_odom_angle_(0),
 		odom_initialized_(false),
-		update_scan_(true),
-		// Grid starting at (-10, -10) in the base_link frame with width 20 and height 20 and 0.05m per cell
-		prob_grid_({-10,-10}, 0.05, 20, 20),
+		update_scan_(false),
+		// Grid starting at (-8, -8) in the base_link frame with width 16m and height 16m and 0.01m per cell
+		prob_grid_({-8,-8}, 0.01, 16, 16),
 		prob_grid_init_(false)
 {
 	map_scans_.reserve(1000000);
@@ -85,6 +93,7 @@ vector<Vector2f>* SLAM::Scan2BaseLinkCloud(const LaserScan &s) const{
 	// I'm assuming that our laser scan will never change shape here - Alex
 	static vector<Vector2f> pointcloud(s.ranges.size());
 	static float angle_diff = (s.angle_max - s.angle_min) / s.ranges.size();
+	pointcloud.resize(s.ranges.size());
 
 	float angle = s.angle_min;
 	for (size_t i = 0; i < s.ranges.size(); i++){
@@ -103,7 +112,7 @@ void SLAM::applyScan(LaserScan scan){
 	prob_grid_.clear();
 
 	for (const Vector2f &p : *points){
-		prob_grid_.applyLaserPoint(p, 0.05);
+		prob_grid_.applyLaserPoint(p, 0.025);
 	}
 	prob_grid_init_ = true;
 }
@@ -111,10 +120,11 @@ void SLAM::applyScan(LaserScan scan){
 // Done by Alex
 Pose SLAM::ApplyCSM(LaserScan scan) {
 	float max_cost = -std::numeric_limits<float>::infinity();
-	Pose best_pose;
+	Pose best_pose = {{0,0},0};
 
 	vector<Vector2f>* base_link_scan = Scan2BaseLinkCloud(scan);
-	
+	trimScan(base_link_scan, 10);
+
 	for (const Pose &pose : possible_poses_){
 		float pose_cost = 0.0;
 		
@@ -127,7 +137,6 @@ Pose SLAM::ApplyCSM(LaserScan scan) {
 				pose_cost += prob_grid_.atLoc(mapped_loc);
 
 			}catch(std::out_of_range &e){
-				// cout << "Scan has no overlap, skipping" << endl;
 				continue;
 			}
 		}
@@ -141,12 +150,7 @@ Pose SLAM::ApplyCSM(LaserScan scan) {
 	return best_pose;
 }
 
-// Example of inputs
-// Vector2f test_scan(1.5, 1.5) ;
-// Pose test_pose = {{0.4,0.0},M_PI / 4.0};
-// or 
-// THIS MUST BE DONE BEFORE PASSING INTO THIS FCN
-// Pose odom_pose_cur = {odom_loc,odom_angle};
+// Done by Connor
 Eigen::Vector2f SLAM::TransformNewScanToPrevPose(const Eigen::Vector2f scan_loc, Pose pose_cur)
 
 {
@@ -159,29 +163,36 @@ Eigen::Vector2f SLAM::TransformNewScanToPrevPose(const Eigen::Vector2f scan_loc,
 	// will need to remove _ from their use in trans_diff and angle_diff equations
     // Vector2f prev_odom_loc = {0,0};
     // float prev_odom_angle = M_PI / 4;
-    Vector2f odom_trans_diff = pose_cur.loc - MLE_pose_.loc;
-    float odom_angle_diff = AngleDiff(pose_cur.angle, MLE_pose_.angle);
-    Pose diff_pose = {odom_trans_diff,odom_angle_diff};
-    Affine2f H_BaseCur2BasePrev = GetTransform(diff_pose);
+    Vector2f odom_trans_diff = pose_cur.loc - MLE_pose_.loc;			 // In the map frame
+    float odom_angle_diff = AngleDiff(pose_cur.angle, MLE_pose_.angle);	 // Frame independent
+    // Pose diff_pose = {odom_trans_diff, odom_angle_diff};
+    // Affine2f H_BaseCur2BasePrev = GetTransform(diff_pose);
 
-    // Apply transformations to Scan Point
-    Vector3f Scan2Lidar_xyz(scan_loc.x(),scan_loc.y(),1) ;
-    // Vector3f Scan2BasePrev_xyz = H_BaseCur2BasePrev*H_Lidar2BaseCur*Scan2Lidar_xyz;
-    Vector3f Scan2BasePrev_xyz = H_BaseCur2BasePrev*Scan2Lidar_xyz;
-    Vector2f Scan2BasePrev(Scan2BasePrev_xyz.x(),Scan2BasePrev_xyz.y());
-    return Scan2BasePrev;
+    // // Apply transformations to Scan Point
+    // Vector3f Scan2Lidar_xyz(scan_loc.x(),scan_loc.y(),1) ;
+    // // Vector3f Scan2BasePrev_xyz = H_BaseCur2BasePrev*H_Lidar2BaseCur*Scan2Lidar_xyz;
+    // Vector3f Scan2BasePrev_xyz = H_BaseCur2BasePrev*Scan2Lidar_xyz;
+    // Vector2f Scan2BasePrev(Scan2BasePrev_xyz.x(),Scan2BasePrev_xyz.y());
+    // return Scan2BasePrev;
+
+    Eigen::Rotation2Df R_map2oldBaseLink(-MLE_pose_.angle);
+    // Eigen::Rotation2Df R_newBaseLink2map(pose_cur.angle);
+    Eigen::Rotation2Df R_newBaseLink2oldBaseLink(odom_angle_diff);
+    // Vector2f mapped_scan = R_map2oldBaseLink * odom_trans_diff + R_newBaseLink2map * R_map2oldBaseLink * scan_loc;
+    Vector2f mapped_scan = R_map2oldBaseLink * odom_trans_diff + R_newBaseLink2oldBaseLink * scan_loc;
+    return mapped_scan;
 }
 
-Eigen::Affine2f SLAM::GetTransform(Pose pose) {
-    // in radians
-    Rotation2Df R(pose.angle);
-    Vector2f Tr = pose.loc;
-    Affine2f H = Eigen::Affine2f::Identity();
-    H.rotate ( R ) ;
-    H.translate ( Tr ) ;
-    // cout << "H = " << endl << H.matrix() << endl;
-	return H;
-}
+// Eigen::Affine2f SLAM::GetTransform(Pose pose) {
+//     // in radians
+//     Rotation2Df R(pose.angle);
+//     Vector2f Tr = pose.loc;
+//     Affine2f H = Eigen::Affine2f::Identity();
+//     H.rotate ( R ) ;
+//     H.translate ( Tr ) ;
+//     // cout << "H = " << endl << H.matrix() << endl;
+// 	return H;
+// }
 
 // Done by Mark
 void SLAM::ObserveLaser(const vector<float>& ranges,
@@ -190,26 +201,20 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
                                      float angle_min,
                                      float angle_max,
                                      amrl_msgs::VisualizationMsg &viz) {
-	// A new laser scan has been observed. Decide whether to add it as a pose
-	// for SLAM. If decided to add, align it to the scan from the last saved pose,
-	// and save both the scan and the optimized pose.
+	// Test whether we need to update the map with the current laser scan
+	bool apply_scan_flag = update_scan_ or (odom_initialized_ and not prob_grid_init_);
 
-	// NOTE: The reason I check the update_scan_ boolean is to prevent this
-	// function from saving the laser scan each time it's called, which would
-	// probably slow things down
-	if (update_scan_){
+	if (apply_scan_flag){
 		current_scan_ = LaserScan({ranges, range_min, range_max, angle_min, angle_max});
-		if (prob_grid_init_)
-		{
-			// Transform the current scan centered around possible poses from
-			// motion model to find best fit with lookup table from previous scan
-			MLE_pose_ = ApplyCSM(current_scan_);
-			updateMap(MLE_pose_);
-			R_odom2MLE_ = Eigen::Rotation2Df(MLE_pose_.angle - prev_odom_angle_);
-		}
+		
+		// Transform the current scan centered around possible poses from
+		// motion model to find best fit with lookup table from previous scan
+		MLE_pose_ = ApplyCSM(current_scan_);
+		updateMap(MLE_pose_);
+		R_odom2MLE_ = Eigen::Rotation2Df(MLE_pose_.angle - prev_odom_angle_);
+		
 		// Get lookup table, preparing for next scan
 		applyScan(current_scan_);
-		// prob_grid_.showGrid(viz);
 		update_scan_ = false;
 	}
 	// if (prob_grid_init_) prob_grid_.showGrid(viz);
@@ -218,13 +223,16 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
 // Done by Mark untested
 void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_traveled, float angle_diff) {
 	possible_poses_.clear();
-	int res = 11.0;	// number of entries will be res^3, so don't make it too high-res
+	// int res = 9.0;	// number of entries will be res^3, so don't make it too high-res
+	float x_res = 11.0;
+	float y_res = 7.0;
+	float t_res = 21.0;
 
 	// Noise constants to tune
-	const float k1 = 0.2;// 0.40;  // translation error per unit translation (suggested: 0.1-0.2)
+	const float k1 = 0.40;// 0.40;  // translation error per unit translation (suggested: 0.1-0.2)
 	const float k2 = 0.02;// 0.02;  // translation error per unit rotation    (suggested: 0.01)
-	const float k3 = 0.1;// 0.20;  // angular error per unit translation     (suggested: 0.02-0.1)
-	const float k4 = 0.2;// 0.40;  // angular error per unit rotation        (suggested: 0.05-0.2)
+	const float k3 = 0.10;// 0.20;  // angular error per unit translation     (suggested: 0.02-0.1)
+	const float k4 = 0.40;// 0.40;  // angular error per unit rotation        (suggested: 0.05-0.2)
 	// Introduce noise based on motion model
 	const float abs_angle_diff = abs(angle_diff);
 	const float x_stddev = k1*dist_traveled + k2*abs_angle_diff;
@@ -235,15 +243,15 @@ void SLAM::ApplyMotionModel(Eigen::Vector2f loc, float angle, float dist_travele
 	const float sin_ang = sin(angle);
 
 	// 3 for loops for each dimension of voxel cube (x, y, theta)
-	for (int x_i=0; x_i<res; x_i++)
+	for (int x_i=0; x_i<x_res; x_i++)
 	{
-		float noise_x = x_stddev*(2*x_i/res-1);
-		for (int y_i=0; y_i<res; y_i++)
+		float noise_x = 2*x_stddev*(2*x_i/(x_res-1) - 1);
+		for (int y_i=0; y_i<y_res; y_i++)
 		{
-			float noise_y = y_stddev*(2*y_i/res-1);
-			for (int ang_i=0; ang_i<res; ang_i++)
+			float noise_y = 2*y_stddev*(2*y_i/(y_res-1) - 1);
+			for (int ang_i=0; ang_i<t_res; ang_i++)
 			{
-				float pose_ang = angle + ang_stddev*(2*ang_i/res-1);
+				float pose_ang = angle + 2*ang_stddev*(2*ang_i/(t_res-1) - 1);
 				float pose_x = loc.x() + noise_x*cos_ang - noise_y*sin_ang;
 				float pose_y = loc.y() + noise_x*sin_ang + noise_y*cos_ang;
 				Pose this_pose = {{pose_x, pose_y}, pose_ang};
@@ -259,6 +267,7 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 		prev_odom_angle_ = odom_angle;
 		prev_odom_loc_ = odom_loc;
 		odom_initialized_ = true;
+		update_scan_ = true;
 		return;
 	}
 
@@ -269,12 +278,11 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 
 	// Update current estimate of pose
 	current_pose_.loc = MLE_pose_.loc + R_odom2MLE_ * odom_diff;
-	current_pose_.angle = fmod(MLE_pose_.angle + angle_diff, 2*M_PI);
+	current_pose_.angle = fmod(MLE_pose_.angle + angle_diff + M_PI, 2*M_PI) - M_PI;
 
-	if (dist_traveled > 0.5 or angle_diff > M_PI/6)
+	if (dist_traveled > 0.15 or abs(angle_diff) > M_PI/24)
 	{
 		// updates possible_poses_
-		// ApplyMotionModel(odom_loc, odom_angle, dist_traveled, angle_diff);
 		ApplyMotionModel(current_pose_.loc, current_pose_.angle, dist_traveled, angle_diff);
 		// Save the current laser scan
 		update_scan_ = true;
@@ -303,8 +311,8 @@ void SLAM::updateMap(Pose CSM_pose) {
 }
 
 vector<Vector2f> SLAM::GetMap() {
-	int jump_size = ceil(map_scans_.size() / 10000);
-	int N = std::min(int(map_scans_.size()), 10000);
+	int jump_size = ceil(map_scans_.size() / 5000);
+	int N = std::min(int(map_scans_.size()), 5000);
 	vector<Vector2f> output_vector(N);
 
 	for (int i = 0; i < N; i++){

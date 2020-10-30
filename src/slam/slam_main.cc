@@ -93,6 +93,8 @@ void PublishMap() {
   static double t_last = 0;
   if (GetMonotonicTime() - t_last < 0.5) {
     // Rate-limit visualization.
+    ClearVisualizationMsg(vis_msg_);
+    visualization_publisher_.publish(grid_msg_);
     return;
   }
   t_last = GetMonotonicTime();

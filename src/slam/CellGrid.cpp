@@ -94,13 +94,9 @@ void CellGrid::applyLaserPoint(Vector2f loc, float std_dev){
 				float log_weight = -offset_squared / variance;
 
 				if ( checkXLim(x0+dxi) and checkYLim(y0+dyi) ) grid_[x0+dxi][y0+dyi] = std::max(log_weight, grid_[x0+dxi][y0+dyi]); // Check the index represented by ( xi,  yi)
-				else cout << "skip ++" << endl;
 				if ( checkXLim(x0+dxi) and checkYLim(y0-dyi) ) grid_[x0+dxi][y0-dyi] = std::max(log_weight, grid_[x0+dxi][y0-dyi]); // Check the index represented by ( xi, -yi)
-				else cout << "skip +-" << endl;
 				if ( checkXLim(x0-dxi) and checkYLim(y0+dyi) ) grid_[x0-dxi][y0+dyi] = std::max(log_weight, grid_[x0-dxi][y0+dyi]); // Check the index represented by (-xi,  yi)
-				else cout << "skip -+" << endl;
 				if ( checkXLim(x0-dxi) and checkYLim(y0-dyi) ) grid_[x0-dxi][y0-dyi] = std::max(log_weight, grid_[x0-dxi][y0-dyi]); // Check the index represented by (-xi, -yi)
-				else cout << "skip --" << endl;
 
 				dyi++;
 				too_far_y = log_weight < min_cost_;
