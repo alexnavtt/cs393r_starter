@@ -104,7 +104,9 @@ class SLAM {
   LaserScan current_scan_;   // Current scan for SLAM algorithm to use
   bool update_scan_;         // Flag for whether or not to update the SLAM map
 
+  // Motion model variables
   std::vector<Pose> possible_poses_;
+  std::vector<float> motion_model_prob_;
 
   // Rasterized grid
   CellGrid prob_grid_;
