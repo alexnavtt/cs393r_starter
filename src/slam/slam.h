@@ -38,6 +38,11 @@ struct Pose{
   float angle;
 };
 
+struct PoseWithLikelihood{
+  Pose pose;
+  float log_likelihood;
+};
+
 struct LaserScan{
   std::vector<float> ranges;
   float range_min;
@@ -61,9 +66,6 @@ class SLAM {
 
   // does what the name says it does
   Eigen::Vector2f TransformNewScanToPrevPose(const Eigen::Vector2f scan_loc, Pose odom_pose_cur);
-
-  // Gets the Homogeneous Transform for use in MapNewScanToPrevPose
-  Eigen::Affine2f GetTransform(Pose pose);
 
   // Observe new odometry-reported location.
   void ObserveOdometry(const Eigen::Vector2f& odom_loc,
@@ -92,6 +94,22 @@ class SLAM {
 
  private:
 
+  // Tuning parameters
+  float observation_likelihood_res_;
+  float observation_likelihood_std_dev_;
+  float motion_model_weight_;
+  float laser_scan_weight_;
+  int CSM_scan_offset_;
+  float x_res_;
+  float y_res_;
+  float t_res_;
+  float k1_;
+  float k2_;
+  float k3_;
+  float k4_;
+  float linear_diff_threshold_;
+  float angular_diff_threshold_;
+
   // Previous odometry-reported locations.
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
@@ -105,8 +123,7 @@ class SLAM {
   bool update_scan_;         // Flag for whether or not to update the SLAM map
 
   // Motion model variables
-  std::vector<Pose> possible_poses_;
-  std::vector<float> motion_model_prob_;
+  std::vector<PoseWithLikelihood> possible_poses_;
 
   // Rasterized grid
   CellGrid prob_grid_;
