@@ -22,6 +22,7 @@
 #include <vector>
 #include <algorithm>
 #include <list>
+#include <map>
 
 #include "eigen3/Eigen/Dense"
 #include "geometry_msgs/Pose2D.h"
@@ -55,86 +56,112 @@ struct Obstacle{
   double timestamp;
 };
 
+struct Neighbor{
+  std::string key;
+  int index;
+};
+
+struct Node{
+  Eigen::Vector2f loc;                  // Location of node
+  Eigen::Vector2i index;                // Index of node
+  int angle;                            // Angle of node (1 = Vertical, 0 = Horizontal)
+  float cost;                           // Total path cost up to this node (NOTE: not edge cost)
+  std::string parent;                   // Parent of the node on the optimal path                
+  std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
+  std::vector<float> edge_costs;        // List of costs to move to each neighbor
+  std::vector<PathOption> edges;        // List of all the possible movements to each neighbor
+  std::string key;                      // Unique identifier
+};
+
 class Navigation {
  public:
 
+  /* -------- General Navigation Functions ---------- */
    // Constructor
   explicit Navigation(const std::string& map_file, ros::NodeHandle* n);
-
   // Used in callback from localization to update position.
   void UpdateLocation(const Eigen::Vector2f& loc, float angle);
-
   // Used in callback for odometry messages to update based on odometry.
   void UpdateOdometry(const Eigen::Vector2f& loc,
                       float angle,
                       const Eigen::Vector2f& vel,
                       float ang_vel);
-
   // Updates based on an observed laser scan
   void ObservePointCloud(const std::vector<Eigen::Vector2f>& cloud,
                          double time);
-
-  // Main function called continously from main
-  void Run();
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
+   // Main function called continously from main
+  void Run();
 
-  // Scale velocities to stay withing acceleration limits
-  float limitVelocity(float vel);
 
-  // Move along a given path (pointless comment, I know)
-  void moveAlongPath(PathOption path);
-
-  void plotPathDetails(PathOption path);
-  void printPathDetails(PathOption path);
-
-  // Publish a drive command
-  void driveCar(float curvature, float velocity);
+  /* -------- Local Planner Functions ---------- */
 
   // Ackermann functions
   amrl_msgs::AckermannCurvatureDriveMsg AckermannFK(float x_dot, float y_dot, float omega);
   geometry_msgs::Twist AckermannIK(float curvature, float velocity);
-
-  // Get Robot State
-  geometry_msgs::Pose2D getOdomPose() const;
-
-  Eigen::Vector2f BaseLink2Odom(Eigen::Vector2f p);
-  Eigen::Vector2f Odom2BaseLink(Eigen::Vector2f p);
-
-  /* -------- Local Planner Functions ---------- */
-
   // Set and get the time before old obstacles are pruned off
   void setObstacleMemory(float delay);
   float getObstacleMemory();
-
   // Set and get the weights for the local planner cost function
   void setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG);
   std::vector<float> getLocalPlannerWeights();
-
   // Visualize the current possible paths from the local planner
   void showLocalPaths();
   void showObstacles();
-
+  // Scale velocities to stay withing acceleration limits
+  float limitVelocity(float vel);
+  // Move along a given path
+  void moveAlongPath(PathOption path);
+  // Publish a drive command
+  void driveCar(float curvature, float velocity);
   // Get the best path towards the goal
   PathOption getGreedyPath(Eigen::Vector2f goal_loc);
 
+
+  /* -------- Global Planner Functions ---------- */
+  // Initialize the navigation mao at the start point and update the planner resolution
+  void initializeMap(Eigen::Vector2f start_loc, float start_angle, float resolution);
+  // Instantiate a new node as a child of another node
+  Node newNode(const Node &old_node, int neighbor_index);
+  // Check if travel from Node A to Node B is valid
+  bool isValidNeighbor(const Node &node_A,const Node &node_B);
+  // Update valid neighbors and edge costs
+  void visitNode(Node &node);
+  // Get the best sequesnce of nodes to the nav_goal_ point
+  std::vector<Node> getGlobalPath();
+
+
+  /* -------- Helper Functions ---------- */
+  Eigen::Vector2f BaseLink2Odom(Eigen::Vector2f p);
+  Eigen::Vector2f Odom2BaseLink(Eigen::Vector2f p);
+  void printPathDetails(PathOption path);
   void printVector(Eigen::Vector2f print_vector, std::string vector_name);
+  std::string getNewID(int xi, int yi, int angle_state);
+  std::vector<Neighbor> getNeighbors(const Node &node);
+
+
+
+  /* -------- Visualization Functions -------- */
+  void plotPathDetails(PathOption path);
+  void plotNodeNeighbours(const Node &node);
+  void visualizeMap();
 
  private:
 
   /* ----------- Robot State ------------ */
 
-  // Current robot location.
+  // Current robot location
   Eigen::Vector2f robot_loc_;
-  // Current robot orientation.
+  // Current robot orientation
   float robot_angle_;
-  // Current robot velocity.
+  // Current robot velocity
   Eigen::Vector2f robot_vel_;
-  // Current robot angular speed.
+  // Current robot angular speed
   float robot_omega_;
-  // Odometry-reported robot location.
+  // Odometry-reported robot location
   Eigen::Vector2f odom_loc_;
-  // Odometry-reported robot angle.
+  // Odometry-reported robot angle
   float odom_angle_;
   // Add a latency compensator
   LatencyCompensator LC_;
@@ -145,12 +172,17 @@ class Navigation {
 
   /* --------- Global Planning ---------- */
 
-  // Whether navigation is complete.
+  // Whether navigation is complete
   bool nav_complete_;
-  // Navigation goal location.
+  // Navigation goal location
   Eigen::Vector2f nav_goal_loc_;
-  // Navigation goal angle.
+  // Navigation goal angle
   float nav_goal_angle_;
+  // Navigation map
+  std::map<std::string, Node> nav_map_;
+  float map_resolution_;
+  // Priority Queue
+  std::list<Node> frontier_;
 
   /* --------- Local Planning ---------- */
 

@@ -155,15 +155,6 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 }
 
-geometry_msgs::Pose2D Navigation::getOdomPose() const
-{
-	geometry_msgs::Pose2D pose;
-	pose.x = odom_loc_[0];
-	pose.y = odom_loc_[1];
-	pose.theta = odom_angle_;
-	return pose;
-}
-
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 	nav_goal_loc_ = loc;
 	nav_goal_angle_ = angle;
@@ -563,6 +554,131 @@ geometry_msgs::Twist Navigation::AckermannIK(float curvature, float velocity){
 Eigen::Vector2f Navigation::BaseLink2Odom(Eigen::Vector2f p) {return odom_loc_ + R_odom2base_*p;}
 Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base_.transpose()*(p - odom_loc_);}
 
+
+
+//========================= NODE FUNCTIONS ============================//
+
+string Navigation::getNewID(int xi, int yi, int angle_state){
+	string id = std::to_string(xi) + "_" +  std::to_string(yi) + "_" + std::to_string(angle_state);
+	return id;	
+}
+
+vector<Neighbor> Navigation::getNeighbors(const Node &node){
+	vector<Neighbor> neighbors;
+
+	int xi = node.index.x();
+	int yi = node.index.y();
+	int angle = node.angle;
+
+	switch (node.angle){
+		// Horizontal position
+		case 0:
+			// When horizontal we can move to neighbors 0,2,3,5,6,8
+			neighbors.push_back({getNewID(xi-1, yi+1, 1-angle), 0});
+			neighbors.push_back({getNewID(xi+1, yi+1, 1-angle), 2});
+			neighbors.push_back({getNewID(xi-1, yi,   angle),   3});
+			neighbors.push_back({getNewID(xi+1, yi,   angle),   5});
+			neighbors.push_back({getNewID(xi-1, yi-1, 1-angle), 6});
+			neighbors.push_back({getNewID(xi+1, yi-1, 1-angle), 6});
+			break;
+
+		case 1:
+			// When vertical we can move to neighbors 0,1,2,6,7,8
+			neighbors.push_back({getNewID(xi-1, yi+1, 1-angle), 0});
+			neighbors.push_back({getNewID(xi,   yi+1, angle),   1});
+			neighbors.push_back({getNewID(xi+1, yi+1, 1-angle), 2});
+			neighbors.push_back({getNewID(xi-1, yi-1, 1-angle), 6});
+			neighbors.push_back({getNewID(xi,   yi-1, angle),   7});
+			neighbors.push_back({getNewID(xi+1, yi-1, 1-angle), 8});
+			break;
+	}
+
+	return neighbors;
+}
+
+Node Navigation::newNode(const Node &old_node, int neighbor_index){
+	int dx = 0; int dy = 0; int dtheta = 0; // Change in index, not in position
+	Node new_node;
+	
+	// Untested
+	switch (old_node.angle){
+		// Starting out horizontal
+		case 0:
+			dx = (neighbor_index % 3) == 0;
+			dy = (neighbor_index == 0 or neighbor_index == 2) - (neighbor_index == 6 or neighbor_index == 8);
+			dtheta = (neighbor_index % 2) == 0;
+			break;
+		// Starting out vertical
+		case 1:
+			dx = (neighbor_index == 0 or neighbor_index == 6) - (neighbor_index == 2 or neighbor_index == 8);
+			dy = neighbor_index < 3;
+			dtheta = (neighbor_index % 2) == 0;
+			break;
+	}	
+
+	new_node.loc 	   = old_node.loc + map_resolution_ * Vector2f(dx, dy);
+	new_node.index 	   = old_node.index + Eigen::Vector2i(dx, dy);
+	new_node.angle 	   = abs(old_node.angle - dtheta);
+	new_node.cost 	   = old_node.cost + old_node.edge_costs[neighbor_index];
+	new_node.parent    = old_node.key;
+	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y(), new_node.angle);
+	new_node.neighbors = getNeighbors(new_node);
+
+	return new_node;
+}
+
+void Navigation::initializeMap(Eigen::Vector2f loc, float angle, float resolution){
+	map_resolution_ = resolution;
+	nav_map_.clear();
+
+	int xi = loc.x()/map_resolution_;
+	int yi = loc.y()/map_resolution_;
+
+	Node start_node;
+	start_node.loc 	  = loc;
+	start_node.index  = Eigen::Vector2i(xi, yi);
+	start_node.angle  = (abs(angle) > M_PI/4) and (abs(angle) < 3*M_PI/4);
+	start_node.cost   = 0;
+	start_node.parent = "START";
+	start_node.key    = "START";
+	start_node.neighbors = getNeighbors(start_node);
+
+	nav_map_[start_node.key] = start_node;
+}
+
+// TODO: Connor
+void plotNodeNeighbors(const Node &node){
+	// Visualize the node and it's immediate neighbors using global_viz_msg_ (defined in line 52)
+	// Make the node a small circle if it is vertical (node.angle == 1)
+	// Make the node a small cross if it is horizontal (node.angle == 0)
+	// Plot the paths between the node and each neighbors (either a straight line for indices 1,3,5,7 or and arc for indices 0,2,6,8)
+	// The nodes are arranged as in slide 15 of lecture 21 and labelled like this:
+
+	// 0---1---2     ^ y
+	// |   |   |     |
+	// 3---4---5     o---> x
+	// |   |   |
+	// 6---7---8
+
+	// You will need to make use of the new function I wrote: newNode(const Node &old_node, int neighbor_index) {untested, sorry}
+	// The stright line distance between nodes is contained in the global variable map_resolution_;
+	// I've already put the necessary code in to make it run in the main program so you just need to work here
+
+	// Here is the syntax for the needed visualization functions:
+	// visualization::DrawPoint(const Vector2f& p, uint32_t color, VisualizationMsg& msg)
+	// visualization::DrawLine(const Vector2f& p0, const Vector2f& p1, uint32_t color, VisualizationMsg& msg)
+	// visualization::DrawCross(const Eigen::Vector2f& location, float size, uint32_t color, VisualizationMsg& msg)
+	// visualization::DrawArc(const Vector2f& center, float radius, float start_angle, float end_angle, uint32_t color, VisualizationMsg& msg)
+
+	// And here are some nice options for the uint32_t color inputs in those functions above:
+	// Blue: 0x000dff
+	// Red: 0xff0000
+	// Green: 0x009c08
+	// Orange: 0xff9900
+	// Black: 0x000000
+}
+
+
 // Main Loop
 void Navigation::Run() {
 	visualization::ClearVisualizationMsg(local_viz_msg_);
@@ -577,7 +693,11 @@ void Navigation::Run() {
 		}
 		goal_vector_ = Vector2f(4,0);
 		time_prev_ = ros::Time::now();
+
+		// Node Visualization Testing
+		initializeMap({0,0}, 0, 1);
 	}
+	plotNodeNeighbors(nav_map_["START"]);
 
 	showObstacles();
 	PathOption BestPath = getGreedyPath(goal_vector_);
