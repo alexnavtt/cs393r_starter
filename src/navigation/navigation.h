@@ -58,6 +58,7 @@ struct Obstacle{
 
 struct Neighbor{
   std::string key;
+  float path_length;
   int index;
 };
 
@@ -68,8 +69,6 @@ struct Node{
   float cost;                           // Total path cost up to this node (NOTE: not edge cost)
   std::string parent;                   // Parent of the node on the optimal path                
   std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
-  std::vector<float> edge_costs;        // List of costs to move to each neighbor
-  std::vector<PathOption> edges;        // List of all the possible movements to each neighbor
   std::string key;                      // Unique identifier
 };
 
@@ -125,7 +124,7 @@ class Navigation {
   // Instantiate a new node as a child of another node
   Node newNode(const Node &old_node, int neighbor_index);
   // Check if travel from Node A to Node B is valid
-  bool isValidNeighbor(const Node &node_A,const Node &node_B);
+  float edgeCost(const Node &node_A,const Node &node_B);
   // Update valid neighbors and edge costs
   void visitNode(Node &node);
   // Get the best sequesnce of nodes to the nav_goal_ point
@@ -144,7 +143,7 @@ class Navigation {
 
   /* -------- Visualization Functions -------- */
   void plotPathDetails(PathOption path);
-  void plotNodeNeighbours(const Node &node);
+  void plotNodeNeighbors(const Node &node);
   void visualizeMap();
 
  private:
