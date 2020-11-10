@@ -699,9 +699,9 @@ void Navigation::plotNodeNeighbors(const Node &node){
 		if (not nav_map_.count(neighbor_id)){
 			// If it does not, create a new one in the nav_map_
 			nav_map_[neighbor_id] = newNode(node, i);
-
-			// Do the plot stuff here
 		}
+
+		// Do the plot stuff here
 		
 	}
 }
