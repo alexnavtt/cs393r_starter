@@ -28,6 +28,11 @@
 #include "ros/ros.h"
 #include "stdio.h" // Mark added
 
+#include "shared/math/geometry.h"
+#include "shared/math/line2d.h"
+#include "shared/math/math_util.h"
+#include "shared/util/timer.h"
+
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
@@ -36,10 +41,12 @@
 #include <string>
 
 using Eigen::Vector2f;
+using Eigen::Vector2i;
 using amrl_msgs::AckermannCurvatureDriveMsg;
 using amrl_msgs::VisualizationMsg;
 using std::string;
 using std::vector;
+using geometry::line2f;
 
 using namespace math_util;
 using namespace ros_helpers;
@@ -559,8 +566,8 @@ Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base
 //========================= GLOBAL PLANNER - NODE FUNCTIONS ============================//
 
 // Done: Alex
-string Navigation::getNewID(int xi, int yi, int angle_state){
-	string id = std::to_string(xi) + "_" +  std::to_string(yi) + "_" + std::to_string(angle_state);
+string Navigation::getNewID(int xi, int yi){
+	string id = std::to_string(xi) + "_" +  std::to_string(yi);
 	return id;	
 }
 
@@ -570,79 +577,92 @@ float Navigation::edgeCost(const Node &node_A, const Node &node_B){
 	return((node_A.loc - node_B.loc).norm());
 }
 
+// Helper Function (untested)
+std::array<line2f,2> getCushionLines(line2f line, float offset){
+	Vector2f normal_vec = line.UnitNormal();
+	Vector2f cushion_A_point_1 = line.p0 + normal_vec * offset;
+	Vector2f cushion_A_point_2 = line.p1 + normal_vec * offset;
+	Vector2f cushion_B_point_1 = line.p0 - normal_vec * offset;
+	Vector2f cushion_B_point_2 = line.p1 - normal_vec * offset;
+	return {line2f(cushion_A_point_1, cushion_A_point_2), line2f(cushion_B_point_1, cushion_B_point_2)};
+}
+
+// TODO: Alex
+bool Navigation::isValidNeighbor(const Node &node, const Neighbor &neighbor){
+	// Check for adjacency
+	int x_offset = node.index.x() - neighbor.node_index.x();
+	int y_offset = node.index.y() - neighbor.node_index.y();
+	if (not (abs(x_offset) <= 1 and abs(y_offset) <= 1)) 
+		return false;
+
+	// Create 3 lines: 1 from A to B and then the others offset from that as a cushion
+	Vector2f offset(map_resolution_ * x_offset, map_resolution_ * y_offset);
+	Vector2f neighbor_loc = node.loc + offset;
+	const line2f node_line(node.loc, neighbor_loc);
+	auto cushion_lines = getCushionLines(node_line, 0.5);
+	cushion_lines[0].p0.x()++;	// just put this line here so it would compile
+
+	// TODO: Load the map file somewhere in the planner
+
+	// Check for collisions
+	// for (const line2f map_line : map_.lines)
+ //    {
+	// 	bool intersects_main = map_line.Intersects(node_line);
+	// 	bool intersects_cushion_0 = map_line.Intersects(cushion_lines[0]);
+	// 	bool intersects_cushion_1 = map_line.Intersects(cushion_lines[1]);
+	// 	if (intersects_main or intersects_cushion_0 or intersects_cushion_1)
+	// 		return false;
+ //    }
+
+	return true;
+}
+
 // Done: Alex (untested)
 vector<Neighbor> Navigation::getNeighbors(const Node &node){
 	vector<Neighbor> neighbors;
 
 	int xi = node.index.x();
 	int yi = node.index.y();
-	int angle = node.angle;
 
-	float diagonal_path_length = (M_PI/2)/curvature_max_;	// Assuming a curved path
+	float diagonal_path_length = sqrt(2)*map_resolution_;	// Assuming a stright line path
 	float straight_path_length  = map_resolution_;			// Stright line distance
 
 	// Note the each neighbor has the form {ID, curvature, path length, index}
-	switch (node.angle){
-		// Horizontal Position
-		case 0:
-			// When horizontal we can move to neighbors 0,2,3,5,6,8
-			neighbors.push_back({getNewID(xi-1, yi+1, 1-angle), diagonal_path_length, 0});	// Left and up
-			neighbors.push_back({getNewID(xi+1, yi+1, 1-angle), diagonal_path_length, 2});	// Left and down
-			neighbors.push_back({getNewID(xi-1, yi,     angle), straight_path_length, 3});	// Directly left
-			neighbors.push_back({getNewID(xi+1, yi,     angle), straight_path_length, 5});	// Directly right
-			neighbors.push_back({getNewID(xi-1, yi-1, 1-angle), diagonal_path_length, 6});  // Right and up
-			neighbors.push_back({getNewID(xi+1, yi-1, 1-angle), diagonal_path_length, 8});	// Right and down
-			break;
-
-		// Vertical Position
-		case 1:
-			// When vertical we can move to neighbors 0,1,2,6,7,8
-			neighbors.push_back({getNewID(xi-1, yi+1, 1-angle), diagonal_path_length, 0});	// Left and up
-			neighbors.push_back({getNewID(xi,   yi+1,   angle), straight_path_length, 1});	// Directly up
-			neighbors.push_back({getNewID(xi+1, yi+1, 1-angle), diagonal_path_length, 2});	// Right and up
-			neighbors.push_back({getNewID(xi-1, yi-1, 1-angle), diagonal_path_length, 6});	// Left and down
-			neighbors.push_back({getNewID(xi,   yi-1,   angle), straight_path_length, 7});	// Directly down
-			neighbors.push_back({getNewID(xi+1, yi-1, 1-angle), diagonal_path_length, 8});	// Right and down
-			break;
-	}
+	neighbors.push_back({Vector2i(xi-1, yi+1), getNewID(xi-1, yi+1), diagonal_path_length, 0});	// Left and up
+	neighbors.push_back({Vector2i(xi  , yi+1), getNewID(xi,   yi+1), straight_path_length, 1});	// Directly up
+	neighbors.push_back({Vector2i(xi+1, yi+1), getNewID(xi+1, yi+1), diagonal_path_length, 2});	// Right and up
+	neighbors.push_back({Vector2i(xi-1, yi  ), getNewID(xi-1, yi  ), straight_path_length, 3});	// Directly left
+	neighbors.push_back({Vector2i(xi+1, yi  ), getNewID(xi+1, yi  ), straight_path_length, 5});	// Directly right
+	neighbors.push_back({Vector2i(xi-1, yi-1), getNewID(xi-1, yi-1), diagonal_path_length, 6});   // Left and down
+	neighbors.push_back({Vector2i(xi  , yi-1), getNewID(xi,   yi-1), straight_path_length, 7});	// Directly down
+	neighbors.push_back({Vector2i(xi+1, yi-1), getNewID(xi+1, yi-1), diagonal_path_length, 8});	// Right and down
 
 	return neighbors;
 }
 
 // Done: Alex (untested)
 Node Navigation::newNode(const Node &old_node, int neighbor_index){
-	int dx = 0; int dy = 0; int dtheta = 0; // Change in index, not in position
+	// Change in index, not in position
+	int dx = 0; 
+	int dy = 0;
 	Node new_node;
 	
 	// Untested
-	switch (old_node.angle){
-		// Starting out horizontal
-		case 0:
-			dx = (neighbor_index % 3) == 0;
-			dy = (neighbor_index == 0 or neighbor_index == 2) - (neighbor_index == 6 or neighbor_index == 8);
-			dtheta = (neighbor_index % 2) == 0;
-			break;
-		// Starting out vertical
-		case 1:
-			dx = (neighbor_index == 0 or neighbor_index == 6) - (neighbor_index == 2 or neighbor_index == 8);
-			dy = neighbor_index < 3;
-			dtheta = (neighbor_index % 2) == 0;
-			break;
-	}	
+	dx = (neighbor_index % 3 == 2) - (neighbor_index % 3 == 0);
+	dy = (neighbor_index < 3) - (neighbor_index > 5);
 
 	new_node.loc 	   = old_node.loc + map_resolution_ * Vector2f(dx, dy);
 	new_node.index 	   = old_node.index + Eigen::Vector2i(dx, dy);
-	new_node.angle 	   = abs(old_node.angle - dtheta);
 	new_node.cost 	   = old_node.cost + edgeCost(old_node, new_node);
 	new_node.parent    = old_node.key;
-	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y(), new_node.angle);
+	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y());
 	new_node.neighbors = getNeighbors(new_node);
 
 	return new_node;
 }
 
 // Done: Alex (untested)
-void Navigation::initializeMap(Eigen::Vector2f loc, float angle, float resolution){
+void Navigation::initializeMap(Eigen::Vector2f loc, float resolution){
 	map_resolution_ = resolution;
 	nav_map_.clear();
 
@@ -652,7 +672,6 @@ void Navigation::initializeMap(Eigen::Vector2f loc, float angle, float resolutio
 	Node start_node;
 	start_node.loc 	  = loc;
 	start_node.index  = Eigen::Vector2i(xi, yi);
-	start_node.angle  = (abs(angle) > M_PI/4) and (abs(angle) < 3*M_PI/4);
 	start_node.cost   = 0;
 	start_node.parent = "START";
 	start_node.key    = "START";
@@ -664,10 +683,9 @@ void Navigation::initializeMap(Eigen::Vector2f loc, float angle, float resolutio
 // TODO: Connor
 void Navigation::plotNodeNeighbors(const Node &node){
 	// Visualize the node and it's immediate neighbors using global_viz_msg_ (defined in line 52)
-	// Make the node a small circle if it is vertical (node.angle == 1)
-	// Make the node a small cross if it is horizontal (node.angle == 0)
-	// Plot the paths between the node and each neighbors (either a straight line for indices 1,3,5,7 or and arc for indices 0,2,6,8)
-	// The nodes are arranged as in slide 15 of lecture 21 and labelled like this:
+	// Make the node a small cross
+	// Plot the paths between the node and each neighbors (stright lines)
+	// The nodes are arranged and labelled like this:
 
 	// 0---1---2     ^ y
 	// |   |   |     |
@@ -692,13 +710,14 @@ void Navigation::plotNodeNeighbors(const Node &node){
 	// Orange: 0xff9900
 	// Black: 0x000000
 
+	// Here's some starter code/API example for the node stuff
 	for (size_t i = 0; i < node.neighbors.size(); i++){
 		// Get the ID for this neighboring node
 		string neighbor_id = node.neighbors[i].key;
 		// Check if node already exists
 		if (not nav_map_.count(neighbor_id)){
 			// If it does not, create a new one in the nav_map_
-			nav_map_[neighbor_id] = newNode(node, i);
+			Node neighbor = newNode(node, i);
 		}
 
 		// Do the plot stuff here
@@ -723,7 +742,7 @@ void Navigation::Run() {
 		time_prev_ = ros::Time::now();
 
 		// Node Visualization Testing
-		initializeMap({0,0}, 0, 1);  // (location, angle, resolution)
+		initializeMap({0,0}, 0.5);  // (location, angle, resolution)
 	}
 	plotNodeNeighbors(nav_map_["START"]);
 
