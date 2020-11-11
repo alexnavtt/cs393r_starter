@@ -57,9 +57,10 @@ struct Obstacle{
 };
 
 struct Neighbor{
+  Eigen::Vector2i node_index;
   std::string key;
   float path_length;
-  int index;
+  int neighbor_index;
 };
 
 struct Node{
@@ -123,6 +124,8 @@ class Navigation {
   // Instantiate a new node as a child of another node
   Node newNode(const Node &old_node, int neighbor_index);
   // Check if travel from Node A to Node B is valid
+  bool isValidNeighbor(const Node &node, const Neighbor &neighbor);
+  // Find the travel cost bewteen two nodes
   float edgeCost(const Node &node_A,const Node &node_B);
   // Update valid neighbors and edge costs
   void visitNode(Node &node);

@@ -28,6 +28,11 @@
 #include "ros/ros.h"
 #include "stdio.h" // Mark added
 
+#include "shared/math/geometry.h"
+#include "shared/math/line2d.h"
+#include "shared/math/math_util.h"
+#include "shared/util/timer.h"
+
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
@@ -36,10 +41,12 @@
 #include <string>
 
 using Eigen::Vector2f;
+using Eigen::Vector2i;
 using amrl_msgs::AckermannCurvatureDriveMsg;
 using amrl_msgs::VisualizationMsg;
 using std::string;
 using std::vector;
+using geometry::line2f;
 
 using namespace math_util;
 using namespace ros_helpers;
@@ -570,6 +577,46 @@ float Navigation::edgeCost(const Node &node_A, const Node &node_B){
 	return((node_A.loc - node_B.loc).norm());
 }
 
+// Helper Function (untested)
+std::array<line2f,2> getCushionLines(line2f line, float offset){
+	Vector2f normal_vec = line.UnitNormal();
+	Vector2f cushion_A_point_1 = line.p0 + normal_vec * offset;
+	Vector2f cushion_A_point_2 = line.p1 + normal_vec * offset;
+	Vector2f cushion_B_point_1 = line.p0 - normal_vec * offset;
+	Vector2f cushion_B_point_2 = line.p1 - normal_vec * offset;
+	return {line2f(cushion_A_point_1, cushion_A_point_2), line2f(cushion_B_point_1, cushion_B_point_2)};
+}
+
+// TODO: Alex
+bool Navigation::isValidNeighbor(const Node &node, const Neighbor &neighbor){
+	// Check for adjacency
+	int x_offset = node.index.x() - neighbor.node_index.x();
+	int y_offset = node.index.y() - neighbor.node_index.y();
+	if (not (abs(x_offset) <= 1 and abs(y_offset) <= 1)) 
+		return false;
+
+	// Create 3 lines: 1 from A to B and then the others offset from that as a cushion
+	Vector2f offset(map_resolution_ * x_offset, map_resolution_ * y_offset);
+	Vector2f neighbor_loc = node.loc + offset;
+	const line2f node_line(node.loc, neighbor_loc);
+	auto cushion_lines = getCushionLines(node_line, 0.5);
+	cushion_lines[0].p0.x()++;	// just put this line here so it would compile
+
+	// TODO: Load the map file somewhere in the planner
+
+	// Check for collisions
+	// for (const line2f map_line : map_.lines)
+ //    {
+	// 	bool intersects_main = map_line.Intersects(node_line);
+	// 	bool intersects_cushion_0 = map_line.Intersects(cushion_lines[0]);
+	// 	bool intersects_cushion_1 = map_line.Intersects(cushion_lines[1]);
+	// 	if (intersects_main or intersects_cushion_0 or intersects_cushion_1)
+	// 		return false;
+ //    }
+
+	return true;
+}
+
 // Done: Alex (untested)
 vector<Neighbor> Navigation::getNeighbors(const Node &node){
 	vector<Neighbor> neighbors;
@@ -581,14 +628,14 @@ vector<Neighbor> Navigation::getNeighbors(const Node &node){
 	float straight_path_length  = map_resolution_;			// Stright line distance
 
 	// Note the each neighbor has the form {ID, curvature, path length, index}
-	neighbors.push_back({getNewID(xi-1, yi+1), diagonal_path_length, 0});	// Left and up
-	neighbors.push_back({getNewID(xi,   yi+1), straight_path_length, 1});	// Directly up
-	neighbors.push_back({getNewID(xi+1, yi+1), diagonal_path_length, 2});	// Left and down
-	neighbors.push_back({getNewID(xi-1, yi  ), straight_path_length, 3});	// Directly left
-	neighbors.push_back({getNewID(xi+1, yi  ), straight_path_length, 5});	// Directly right
-	neighbors.push_back({getNewID(xi-1, yi-1), diagonal_path_length, 6});   // Right and up
-	neighbors.push_back({getNewID(xi,   yi-1), straight_path_length, 7});	// Directly down
-	neighbors.push_back({getNewID(xi+1, yi-1), diagonal_path_length, 8});	// Right and down
+	neighbors.push_back({Vector2i(xi-1, yi+1), getNewID(xi-1, yi+1), diagonal_path_length, 0});	// Left and up
+	neighbors.push_back({Vector2i(xi  , yi+1), getNewID(xi,   yi+1), straight_path_length, 1});	// Directly up
+	neighbors.push_back({Vector2i(xi+1, yi+1), getNewID(xi+1, yi+1), diagonal_path_length, 2});	// Right and up
+	neighbors.push_back({Vector2i(xi-1, yi  ), getNewID(xi-1, yi  ), straight_path_length, 3});	// Directly left
+	neighbors.push_back({Vector2i(xi+1, yi  ), getNewID(xi+1, yi  ), straight_path_length, 5});	// Directly right
+	neighbors.push_back({Vector2i(xi-1, yi-1), getNewID(xi-1, yi-1), diagonal_path_length, 6});   // Left and down
+	neighbors.push_back({Vector2i(xi  , yi-1), getNewID(xi,   yi-1), straight_path_length, 7});	// Directly down
+	neighbors.push_back({Vector2i(xi+1, yi-1), getNewID(xi+1, yi-1), diagonal_path_length, 8});	// Right and down
 
 	return neighbors;
 }
