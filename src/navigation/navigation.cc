@@ -116,7 +116,6 @@ bool isBetween(const Vector2f p0, const Vector2f p1, const Vector2f p2, const Ve
 	}
 }
 
-// whoops, this never actually gets used ¯\_(ツ)_/¯
 float getAngleBetween(const Vector2f point_A, const Vector2f point_B, const Vector2f point_C){
 	/* returns absolute value of angle between AC and BC
 	          C
@@ -527,6 +526,7 @@ void Navigation::driveCar(float curvature, float velocity){
 }
 
 // Ackerman Forward/Inverse Kinematics
+// FK never gets used
 AckermannCurvatureDriveMsg Navigation::AckermannFK(float x_dot, float y_dot, float omega){
 	float theta = atan2(y_dot, x_dot);
 	float velocity = x_dot*cos(theta);
