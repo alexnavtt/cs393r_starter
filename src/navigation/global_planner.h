@@ -62,9 +62,9 @@ private:
   	std::vector<Neighbor> getNeighbors(const Node &node);
   	std::array<geometry::line2f,2> getCushionLines(geometry::line2f edge, float offset);
 
-	// Navigation map
+	// Navigation map (key, Node)
 	std::map<std::string, Node> nav_map_;
-	// Distance between two adjacent nodes
+	// Horizontal/vertical distance between two adjacent nodes
 	float map_resolution_;
 	// Priority Queue (key, priority)
 	SimpleQueue<std::string, float> frontier_;

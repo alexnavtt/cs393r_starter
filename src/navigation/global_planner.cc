@@ -113,6 +113,9 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y());
 	new_node.neighbors = getNeighbors(new_node);
 
+	// Add to node map with key
+	nav_map_[new_node.key] = new_node;
+
 	return new_node;
 }
 
@@ -160,9 +163,8 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 			// Is this the first time we've seen this node?
 			bool unexplored = !nav_map_.count(next_neighbor.key);
 			if (unexplored){
-				//make new Node out of neighbor, and populate its neighbors
+				// Make new Node out of neighbor
 				Node new_node = newNode(current_node, next_neighbor.neighbor_index);
-				nav_map_[new_node.key] = new_node;
 			}
 			// Assume that neighbors and nodes at the same location have the same keys
 			if (unexplored or (new_cost < nav_map_[next_neighbor.key].cost))
@@ -175,11 +177,22 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 		}
 		loop_counter++;
 	}
-	if (global_path_success) cout << "Global path success!" << endl;
-	else cout << "Global path failure." << endl;
-
 	vector<string> global_path;
-	global_path.push_back("START");
+	if (global_path_success){
+		cout << "Global path success!" << endl;
+		// Backtrace optimal A* path
+		string path_key = current_node.key;
+		while (path_key != "START"){
+			global_path.push_back(path_key);
+			path_key = nav_map_[path_key].parent;
+		}
+		// If you want to go from start to goal:
+		std::reverse(global_path.begin(), global_path.end());
+	}
+	else{
+		cout << "Global path failure." << endl;
+		global_path.push_back("START");
+	}
 	return global_path;
 }
 
