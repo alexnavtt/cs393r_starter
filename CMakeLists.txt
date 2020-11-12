@@ -61,6 +61,6 @@ ROSBUILD_ADD_EXECUTABLE(measure_latency
 TARGET_LINK_LIBRARIES(measure_latency shared_library ${libs})
 
 ADD_EXECUTABLE(pq_tutorial
-               src/pq_tutorial.cc)
+               src/navigation/pq_tutorial.cc)
 ADD_EXECUTABLE(eigen_tutorial
                src/eigen_tutorial.cc)

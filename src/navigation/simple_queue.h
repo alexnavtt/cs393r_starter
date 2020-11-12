@@ -47,7 +47,7 @@ class SimpleQueue {
     }
     // Find where this value should go, and insert it there.
     for (size_t i = 0; i < values_.size(); ++i) {
-      if (values_[i].second > p) {
+      if (values_[i].second < p) {
         values_.insert(values_.begin() + i, make_pair(v, p));
         return;
       }
@@ -59,7 +59,7 @@ class SimpleQueue {
   void Sort() {
     static const auto comparator = 
         [](const pair<Value, Priority>& v1, const pair<Value, Priority>& v2) {
-      return (v1.second < v2.second);
+      return (v1.second > v2.second);
     };
     sort(values_.begin(), values_.end(), comparator);
   }

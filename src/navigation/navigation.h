@@ -23,12 +23,15 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <queue>
 
 #include "eigen3/Eigen/Dense"
 #include "geometry_msgs/Pose2D.h"
 #include "geometry_msgs/Twist.h"
 #include "latency_compensator.h"
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
+#include "vector_map/vector_map.h"
+#include "navigation/simple_queue.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -70,6 +73,11 @@ struct Node{
   std::string parent;                   // Parent of the node on the optimal path                
   std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
   std::string key;                      // Unique identifier
+  bool operator<(const Node& rhs) const
+  {
+    // > for lowest cost sorting like how we want
+    return cost > rhs.cost;
+  }
 };
 
 class Navigation {
@@ -129,8 +137,8 @@ class Navigation {
   float edgeCost(const Node &node_A,const Node &node_B);
   // Update valid neighbors and edge costs
   void visitNode(Node &node);
-  // Get the best sequesnce of nodes to the nav_goal_ point
-  std::vector<Node> getGlobalPath();
+  // Get the best sequence of node keys to the nav_goal_ point
+  std::vector<std::string> getGlobalPath();
 
 
   /* -------- Helper Functions ---------- */
@@ -182,8 +190,10 @@ class Navigation {
   // Navigation map
   std::map<std::string, Node> nav_map_;
   float map_resolution_;
-  // Priority Queue
-  std::list<Node> frontier_;
+  // Priority Queue (key, priority)
+  SimpleQueue<std::string, float> frontier_;
+  // Blueprint map of the environment
+  vector_map::VectorMap map_;
 
   /* --------- Local Planning ---------- */
 

@@ -90,7 +90,7 @@ const float max_accel_ =  4.0;
 const float min_accel_ = -4.0;
 
 // Global one-time variables
-Eigen::Vector2f goal_vector_;
+Eigen::Vector2f local_goal_vector_;
 bool navigation_success_ = false;
 bool init_ = true;
 bool init_vel_ = true;
@@ -125,13 +125,13 @@ bool isBetween(const Vector2f p0, const Vector2f p1, const Vector2f p2, const Ve
 
 float getAngleBetween(const Vector2f point_A, const Vector2f point_B, const Vector2f point_C){
 	/* returns absolute value of angle between AC and BC
-	          C
-			/   \
+	        C
+				/   \
 		   / thC \
 		  a       b
 		 /         \
 		/           \
-	   B______c______A
+	 B______c______A
 	*/
 	Vector2f vec1 = point_B - point_C;
 	Vector2f vec2 = point_A - point_C;
@@ -294,7 +294,7 @@ void Navigation::predictCollisions(PathOption& path){
 		float obs_radius = (turning_center - obs_loc).norm();	// distance to obstacle from turning center
 
 		// Ignore point if it's further away than the most direct path to current goal (approximately)
-		if (obs_loc.norm() > goal_vector_[0] + car_length_) continue;
+		if (obs_loc.norm() > local_goal_vector_[0] + car_length_) continue;
 
 		// Check if point will obstruct car
 		if (obs_radius > rmin && obs_radius < rmax) {
@@ -493,7 +493,7 @@ void Navigation::plotPathDetails(PathOption path){
 	visualization::DrawPathOption(path.curvature, path.free_path_length, path.clearance, local_viz_msg_);
 	
 	// Place red cross at goal position
-	visualization::DrawCross(Odom2BaseLink(goal_vector_), 0.5, 0xff0000, local_viz_msg_);
+	visualization::DrawCross(Odom2BaseLink(local_goal_vector_), 0.5, 0xff0000, local_viz_msg_);
 
 	// Draw Closest Point for Clearance
 	visualization::DrawCross(path.closest_point, 0.25, 0xf07807, local_viz_msg_);
@@ -510,7 +510,7 @@ void Navigation::printPathDetails(PathOption path){
 	printVector(path.obstruction, "obstruction: ");
 	printVector(path.closest_point, "closest point: ");
 	printVector(path.end_point, "end point: ");
-	printVector(goal_vector_, "goal position");
+	printVector(local_goal_vector_, "goal position");
 	std::cout << " - - - - - - - - - - - - - - - " << std::endl;
 }
 
@@ -578,12 +578,13 @@ float Navigation::edgeCost(const Node &node_A, const Node &node_B){
 }
 
 // Helper Function (untested)
-std::array<line2f,2> getCushionLines(line2f line, float offset){
-	Vector2f normal_vec = line.UnitNormal();
-	Vector2f cushion_A_point_1 = line.p0 + normal_vec * offset;
-	Vector2f cushion_A_point_2 = line.p1 + normal_vec * offset;
-	Vector2f cushion_B_point_1 = line.p0 - normal_vec * offset;
-	Vector2f cushion_B_point_2 = line.p1 - normal_vec * offset;
+// outputs 2 lines parallel to edge that are displaced by a given offset
+std::array<line2f,2> getCushionLines(line2f edge, float offset){
+	Vector2f normal_vec = edge.UnitNormal();
+	Vector2f cushion_A_point_1 = edge.p0 + normal_vec * offset;
+	Vector2f cushion_A_point_2 = edge.p1 + normal_vec * offset;
+	Vector2f cushion_B_point_1 = edge.p0 - normal_vec * offset;
+	Vector2f cushion_B_point_2 = edge.p1 - normal_vec * offset;
 	return {line2f(cushion_A_point_1, cushion_A_point_2), line2f(cushion_B_point_1, cushion_B_point_2)};
 }
 
@@ -592,14 +593,14 @@ bool Navigation::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	// Check for adjacency
 	int x_offset = node.index.x() - neighbor.node_index.x();
 	int y_offset = node.index.y() - neighbor.node_index.y();
-	if (not (abs(x_offset) <= 1 and abs(y_offset) <= 1)) 
+	if (not (abs(x_offset) == 1 or abs(y_offset) == 1)) // changed so that node can't be neighbors with itself
 		return false;
 
 	// Create 3 lines: 1 from A to B and then the others offset from that as a cushion
 	Vector2f offset(map_resolution_ * x_offset, map_resolution_ * y_offset);
 	Vector2f neighbor_loc = node.loc + offset;
-	const line2f node_line(node.loc, neighbor_loc);
-	auto cushion_lines = getCushionLines(node_line, 0.5);
+	const line2f edge(node.loc, neighbor_loc);
+	auto cushion_lines = getCushionLines(edge, 0.5);
 	cushion_lines[0].p0.x()++;	// just put this line here so it would compile
 
 	// TODO: Load the map file somewhere in the planner
@@ -678,13 +679,16 @@ void Navigation::initializeMap(Eigen::Vector2f loc, float resolution){
 	start_node.neighbors = getNeighbors(start_node);
 
 	nav_map_[start_node.key] = start_node;
+
+	// Also initialize blueprint map
+	map_.Load("maps/GDC1.txt.");
 }
 
 // TODO: Connor
 void Navigation::plotNodeNeighbors(const Node &node){
 	// Visualize the node and it's immediate neighbors using global_viz_msg_ (defined in line 52)
 	// Make the node a small cross
-	// Plot the paths between the node and each neighbors (stright lines)
+	// Plot the paths between the node and each neighbors (straight lines)
 	// The nodes are arranged and labelled like this:
 
 	// 0---1---2     ^ y
@@ -694,7 +698,7 @@ void Navigation::plotNodeNeighbors(const Node &node){
 	// 6---7---8
 
 	// You will need to make use of the new function I wrote: newNode(const Node &old_node, int neighbor_index) {untested, sorry}
-	// The stright line distance between nodes is contained in the global variable map_resolution_;
+	// The straight line distance between nodes is contained in the global variable map_resolution_;
 	// I've already put the necessary code in to make it run in the main program so you just need to work here
 
 	// Here is the syntax for the needed visualization functions:
@@ -725,6 +729,19 @@ void Navigation::plotNodeNeighbors(const Node &node){
 	}
 }
 
+//========================= GLOBAL PLANNER - PATH PLANNING ============================//
+vector<std::string> Navigation::getGlobalPath(){
+	frontier_.Push("START", 0.0);
+	// look at frontier, get viable neighbors (not in collision)
+	// for each neighbor, get neighbor_cost
+	// if neighbor has never been visited OR neighbor_cost is lower than that node's cost:
+	//   set that node's cost to neighbor_cost
+	//   compute priority = neighbor_cost + heuristic(goal, neighbor)
+	//   add that to frontier by order of priority
+	vector<std::string> global_path;
+	global_path.push_back("START");
+	return global_path;
+}
 
 // Main Loop
 void Navigation::Run() {
@@ -738,22 +755,23 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
-		goal_vector_ = Vector2f(4,0);
+		local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
 		time_prev_ = ros::Time::now();
+		nav_goal_loc_ = Vector2f(20,-10); //random
 
 		// Node Visualization Testing
-		initializeMap({0,0}, 0.5);  // (location, angle, resolution)
+		initializeMap({0,0}, 0.5);  // (location, resolution)
 	}
 	plotNodeNeighbors(nav_map_["START"]);
 
 	showObstacles();
-	PathOption BestPath = getGreedyPath(goal_vector_);
+	PathOption BestPath = getGreedyPath(local_goal_vector_);
 	moveAlongPath(BestPath);
 	printPathDetails(BestPath);
 	plotPathDetails(BestPath);
 
 	// If we have reached our goal we can stop (not relevant for dynamic goal)
-	float dist_to_goal = (odom_loc_-goal_vector_).norm();
+	float dist_to_goal = (odom_loc_-local_goal_vector_).norm();
 	float current_speed = robot_vel_.norm();
 	if (current_speed > 2.0) current_speed = 0; // disregards initial infinite velocity
 	float stopping_dist = 0.1+-0.5*current_speed*current_speed/min_accel_;
