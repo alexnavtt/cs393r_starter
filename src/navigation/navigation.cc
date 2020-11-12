@@ -47,6 +47,9 @@ using amrl_msgs::VisualizationMsg;
 using std::string;
 using std::vector;
 using geometry::line2f;
+using visualization::DrawPoint;
+using visualization::DrawCross;
+using visualization::DrawLine;
 
 using namespace math_util;
 using namespace ros_helpers;
@@ -712,6 +715,7 @@ void Navigation::plotNodeNeighbors(const Node &node){
 	// Black: 0x000000
 
 	// Here's some starter code/API example for the node stuff
+	DrawCross(node.loc,2.0,0xff0000,global_viz_msg_);
 	for (size_t i = 0; i < node.neighbors.size(); i++){
 		// Get the ID for this neighboring node
 		string neighbor_id = node.neighbors[i].key;
@@ -720,7 +724,12 @@ void Navigation::plotNodeNeighbors(const Node &node){
 			// If it does not, create a new one in the nav_map_
 			Node neighbor = newNode(node, i);
 		}
-
+		int neighbor_index = node.neighbors[i].neighbor_index;
+		int dx = (neighbor_index % 3 == 2) - (neighbor_index % 3 == 0);
+		int dy = (neighbor_index < 3) - (neighbor_index > 5);
+		Vector2f neighbor_loc = node.loc + map_resolution_ * Vector2f(dx, dy);
+		DrawPoint(neighbor_loc,0xff9900,global_viz_msg_);
+		DrawLine(node.loc, neighbor_loc, 0x000dff, global_viz_msg_);
 		// Do the plot stuff here
 		
 	}
