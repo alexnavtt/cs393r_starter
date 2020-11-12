@@ -150,7 +150,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	bool global_path_success = false;
 	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
 	string current_key;
-	while(!frontier_.Empty() && loop_counter < 10000)
+	while(!frontier_.Empty() && loop_counter < 100000)
 	{
 		// Get key for the lowest-priority node in frontier_ and then remove it
 		current_key = frontier_.Pop();
