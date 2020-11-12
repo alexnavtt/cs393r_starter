@@ -29,7 +29,7 @@
 #include "latency_compensator.h"
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "vector_map/vector_map.h"
-#include "navigation/simple_queue.h"
+#include "global_planner.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -55,22 +55,6 @@ struct PathOption {
 struct Obstacle{
   Eigen::Vector2f loc;
   double timestamp;
-};
-
-struct Neighbor{
-  Eigen::Vector2i node_index;
-  std::string key;
-  float path_length;
-  int neighbor_index;
-};
-
-struct Node{
-  Eigen::Vector2f loc;                  // Location of node
-  Eigen::Vector2i index;                // Index of node
-  float cost;                           // Total path cost up to this node (NOTE: not edge cost)
-  std::string parent;                   // Parent of the node on the optimal path                
-  std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
-  std::string key;                      // Unique identifier
 };
 
 class Navigation {
@@ -106,9 +90,6 @@ class Navigation {
   // Set and get the weights for the local planner cost function
   void setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG);
   std::vector<float> getLocalPlannerWeights();
-  // Visualize the current possible paths from the local planner
-  void showLocalPaths();
-  void showObstacles();
   // Scale velocities to stay withing acceleration limits
   float limitVelocity(float vel);
   // Move along a given path
@@ -118,36 +99,17 @@ class Navigation {
   // Get the best path towards the goal
   PathOption getGreedyPath(Eigen::Vector2f goal_loc);
 
-
-  /* -------- Global Planner Functions ---------- */
-  // Initialize the navigation mao at the start point and update the planner resolution
-  void initializeMap(Eigen::Vector2f start_loc, float resolution);
-  // Instantiate a new node as a child of another node
-  Node newNode(const Node &old_node, int neighbor_index);
-  // Check if travel from Node A to Node B is valid
-  bool isValidNeighbor(const Node &node, const Neighbor &neighbor);
-  // Find the travel cost bewteen two nodes
-  float edgeCost(const Node &node_A,const Node &node_B);
-  // Update valid neighbors and edge costs
-  void visitNode(Node &node);
-  // Get the best sequence of node keys to the nav_goal_ point
-  std::vector<std::string> getGlobalPath();
-
-
   /* -------- Helper Functions ---------- */
   Eigen::Vector2f BaseLink2Odom(Eigen::Vector2f p);
   Eigen::Vector2f Odom2BaseLink(Eigen::Vector2f p);
   void printPathDetails(PathOption path);
   void printVector(Eigen::Vector2f print_vector, std::string vector_name);
-  std::string getNewID(int xi, int yi);
-  std::vector<Neighbor> getNeighbors(const Node &node);
-
 
 
   /* -------- Visualization Functions -------- */
   void plotPathDetails(PathOption path);
-  void plotNodeNeighbors(const Node &node);
-  void visualizeMap();
+  void showLocalPaths();
+  void showObstacles();
 
  private:
 
@@ -172,21 +134,14 @@ class Navigation {
   Eigen::Matrix2f R_odom2base_;
   Eigen::Matrix2f R_map2odom_;
 
-  /* --------- Global Planning ---------- */
-
+  /* --------- Global Planning --------- */
+  GlobalPlanner global_planner_;
   // Whether navigation is complete
   bool nav_complete_;
   // Navigation goal location
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle
   // float nav_goal_angle_;
-  // Navigation map
-  std::map<std::string, Node> nav_map_;
-  float map_resolution_;
-  // Priority Queue (key, priority)
-  SimpleQueue<std::string, float> frontier_;
-  // Blueprint map of the environment
-  vector_map::VectorMap map_;
 
   /* --------- Local Planning ---------- */
 
