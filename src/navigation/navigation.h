@@ -179,7 +179,7 @@ class Navigation {
   // Navigation goal location
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle
-  float nav_goal_angle_;
+  // float nav_goal_angle_;
   // Navigation map
   std::map<std::string, Node> nav_map_;
   float map_resolution_;

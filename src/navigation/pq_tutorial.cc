@@ -25,6 +25,8 @@ int main()
   nav_map[n2.key] = n2;
   nav_map["c-key"] = {9.0, 3, "c-key"};
   cout << "Priority of the node b: " << nav_map["b-key"].priority << endl;
+  // How can you check whether a element exist in a map?
+  cout << (nav_map.find("fake-key") != nav_map.end()) << endl;
   
   SimpleQueue<string, float> frontier;
   frontier.Push(n1.key, n1.priority);
@@ -38,7 +40,7 @@ int main()
   frontier.Push(nav_map["c-key"].key, nav_map["c-key"].priority);
   // Should print c since b is gone and c now has the lowest priority
   string key_2 = frontier.Pop();
-  // Should remove a, making the queue empty
+  // Remove a, should make the queue empty
   frontier.Pop();
   cout << key_1 << " " << key_2 << " " << frontier.Empty() << endl;
 

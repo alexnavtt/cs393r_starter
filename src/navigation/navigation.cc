@@ -38,7 +38,7 @@
 #include "shared/ros/ros_helpers.h"
 #include "navigation.h"
 #include "visualization/visualization.h"
-#include <string>
+#include "vector_map/vector_map.h"
 
 using Eigen::Vector2f;
 using Eigen::Vector2i;
@@ -148,7 +148,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		LC_(actuation_delay_, observation_delay_, dt_),
 		nav_complete_(true),
 		nav_goal_loc_(0, 0),
-		nav_goal_angle_(0),
+		// nav_goal_angle_(0),
 		free_path_length_weight_(1),
 		clearance_weight_(1),
 		distance_to_goal_weight_(1),
@@ -163,7 +163,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 	nav_goal_loc_ = loc;
-	nav_goal_angle_ = angle;
+	// nav_goal_angle_ = angle;
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
@@ -514,7 +514,7 @@ void Navigation::printPathDetails(PathOption path){
 	std::cout << " - - - - - - - - - - - - - - - " << std::endl;
 }
 
-void Navigation::printVector(Vector2f print_vector, std::string vector_name){
+void Navigation::printVector(Vector2f print_vector, string vector_name){
 	std::cout << vector_name << "\t x= " << print_vector.x() << ", y= " << print_vector.y() << std::endl;
 }
 
@@ -625,8 +625,8 @@ vector<Neighbor> Navigation::getNeighbors(const Node &node){
 	int xi = node.index.x();
 	int yi = node.index.y();
 
-	float diagonal_path_length = sqrt(2)*map_resolution_;	// Assuming a stright line path
-	float straight_path_length  = map_resolution_;			// Stright line distance
+	float diagonal_path_length = sqrt(2)*map_resolution_;	// Assuming a straight line path
+	float straight_path_length  = map_resolution_;			// Straight line distance
 
 	// Note the each neighbor has the form {ID, curvature, path length, index}
 	neighbors.push_back({Vector2i(xi-1, yi+1), getNewID(xi-1, yi+1), diagonal_path_length, 0});	// Left and up
@@ -634,7 +634,7 @@ vector<Neighbor> Navigation::getNeighbors(const Node &node){
 	neighbors.push_back({Vector2i(xi+1, yi+1), getNewID(xi+1, yi+1), diagonal_path_length, 2});	// Right and up
 	neighbors.push_back({Vector2i(xi-1, yi  ), getNewID(xi-1, yi  ), straight_path_length, 3});	// Directly left
 	neighbors.push_back({Vector2i(xi+1, yi  ), getNewID(xi+1, yi  ), straight_path_length, 5});	// Directly right
-	neighbors.push_back({Vector2i(xi-1, yi-1), getNewID(xi-1, yi-1), diagonal_path_length, 6});   // Left and down
+	neighbors.push_back({Vector2i(xi-1, yi-1), getNewID(xi-1, yi-1), diagonal_path_length, 6}); // Left and down
 	neighbors.push_back({Vector2i(xi  , yi-1), getNewID(xi,   yi-1), straight_path_length, 7});	// Directly down
 	neighbors.push_back({Vector2i(xi+1, yi-1), getNewID(xi+1, yi-1), diagonal_path_length, 8});	// Right and down
 
@@ -679,9 +679,6 @@ void Navigation::initializeMap(Eigen::Vector2f loc, float resolution){
 	start_node.neighbors = getNeighbors(start_node);
 
 	nav_map_[start_node.key] = start_node;
-
-	// Also initialize blueprint map
-	map_.Load("maps/GDC1.txt.");
 }
 
 // TODO: Connor
@@ -730,15 +727,49 @@ void Navigation::plotNodeNeighbors(const Node &node){
 }
 
 //========================= GLOBAL PLANNER - PATH PLANNING ============================//
-vector<std::string> Navigation::getGlobalPath(){
+vector<string> Navigation::getGlobalPath(){
 	frontier_.Push("START", 0.0);
+
+	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
+	while(!frontier_.Empty() && loop_counter < 1000)
+	{
+		string current_key = frontier_.Pop();
+		Node current_node = nav_map_[current_key];
+		
+		// Are we there yet?
+		if ( (current_node.loc - nav_goal_loc_).norm() < map_resolution_/2 )
+		{
+			navigation_success_ = true;
+			break;
+		}
+
+		for(auto &next_neighbor : current_node.neighbors)
+		{
+			// Skip if not valid (intersects with map)
+			float new_cost = current_node.cost + next_neighbor.path_length;
+			cout << new_cost << endl;
+
+			bool uncharted = (nav_map_.count(next_neighbor.key) == 0); // change to count()
+			if (uncharted){
+				//make NewNode out of neighbor
+			}
+			
+			// first condition on this if statement: If a map can't find() an element corresponding to
+		  // the key, it returns the iterator corresponding to its end(), so you can compare to that
+			if (uncharted or (new_cost < nav_map_[next_neighbor.key].cost))
+			{
+				//A*
+			}
+		}
+		loop_counter++;
+	}
 	// look at frontier, get viable neighbors (not in collision)
 	// for each neighbor, get neighbor_cost
 	// if neighbor has never been visited OR neighbor_cost is lower than that node's cost:
 	//   set that node's cost to neighbor_cost
 	//   compute priority = neighbor_cost + heuristic(goal, neighbor)
 	//   add that to frontier by order of priority
-	vector<std::string> global_path;
+	vector<string> global_path;
 	global_path.push_back("START");
 	return global_path;
 }
@@ -755,19 +786,22 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
+		cout << "hey!" << endl;
 		local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
 		time_prev_ = ros::Time::now();
 		nav_goal_loc_ = Vector2f(20,-10); //random
-
+		// Initialize blueprint map
+		map_.Load("maps/GDC1.txt");
+		cout << "Initialized GDC1 map with " << map_.lines.size() << " lines." << endl;
 		// Node Visualization Testing
-		initializeMap({0,0}, 0.5);  // (location, resolution)
+		initializeMap({0,0}, map_resolution_);  // (location, resolution)
 	}
 	plotNodeNeighbors(nav_map_["START"]);
 
 	showObstacles();
 	PathOption BestPath = getGreedyPath(local_goal_vector_);
 	moveAlongPath(BestPath);
-	printPathDetails(BestPath);
+	// printPathDetails(BestPath);
 	plotPathDetails(BestPath);
 
 	// If we have reached our goal we can stop (not relevant for dynamic goal)
