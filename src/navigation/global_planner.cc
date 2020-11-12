@@ -12,6 +12,7 @@ using geometry::line2f;
 
 void GlobalPlanner::setResolution(float resolution){
 	map_resolution_ = resolution;
+	cout << "Resolution set to: " << map_resolution_ << endl;
 }
 
 
@@ -52,7 +53,7 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	Vector2f offset(map_resolution_ * x_offset, map_resolution_ * y_offset);
 	Vector2f neighbor_loc = node.loc + offset;
 	const line2f edge(node.loc, neighbor_loc);
-	auto cushion_lines = getCushionLines(edge, 0.5);
+	auto cushion_lines = getCushionLines(edge, 1.0);
 
 	// Check for collisions
 	for (const line2f map_line : map_.lines)
@@ -136,6 +137,10 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 
 	nav_map_[start_node.key] = start_node;
 	frontier_.Push("START", 0.0);
+
+	// Initialize blueprint map
+	map_.Load("maps/GDC1.txt");
+	cout << "Initialized GDC1 map with " << map_.lines.size() << " lines." << endl;
 }
 
 
@@ -145,7 +150,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	bool global_path_success = false;
 	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
 	string current_key;
-	while(!frontier_.Empty() && loop_counter < 1000)
+	while(!frontier_.Empty() && loop_counter < 10000)
 	{
 		// Get key for the lowest-priority node in frontier_ and then remove it
 		current_key = frontier_.Pop();
@@ -180,7 +185,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	}
 	vector<string> global_path;
 	if (global_path_success){
-		cout << "Global path success!" << endl;
+		cout << "After " << loop_counter << " iterations, global path success!" << endl;
 		// Backtrace optimal A* path
 		string path_key = current_key;
 		while (path_key != "START"){
@@ -191,7 +196,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 		std::reverse(global_path.begin(), global_path.end());
 	}
 	else{
-		cout << "Global path failure." << endl;
+		cout << "After " << loop_counter << " iterations, global path failure." << endl;
 		global_path.push_back("START");
 	}
 	return global_path;

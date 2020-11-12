@@ -576,20 +576,22 @@ void Navigation::Run() {
 		cout << "hey!" << endl;
 		local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
 		time_prev_ = ros::Time::now();
-		nav_goal_loc_ = Vector2f(20,-10); //random
-		// Initialize blueprint map
-		// map_.Load("maps/GDC1.txt");
-		// cout << "Initialized GDC1 map with " << map_.lines.size() << " lines." << endl;
+		nav_goal_loc_ = Vector2f(0,20); //random
 		// Node Visualization Testing
-		// initializeMap({0,0});  // (location, resolution)
+		global_planner_.setResolution(0.25);
+		global_planner_.initializeMap(robot_loc_);  // (location, resolution)
 	}
 	// plotNodeNeighbors(nav_map_["START"]);
 
-	showObstacles();
-	PathOption BestPath = getGreedyPath(local_goal_vector_);
+	// GREEDY LOCAL PLANNER STUFF
+	// showObstacles();
+	// PathOption BestPath = getGreedyPath(local_goal_vector_);
 	// moveAlongPath(BestPath);
 	// printPathDetails(BestPath);
-	plotPathDetails(BestPath);
+	// plotPathDetails(BestPath);
+
+	vector<string> global_path = global_planner_.getGlobalPath(nav_goal_loc_);
+	global_planner_.plotGlobalPath(global_path, global_viz_msg_);
 
 	// If we have reached our goal we can stop (not relevant for dynamic goal)
 	float dist_to_goal = (odom_loc_-local_goal_vector_).norm();
@@ -603,6 +605,10 @@ void Navigation::Run() {
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
+	
+	while(1){
+		ros::Rate(1).sleep();
+	}
 }
 
 }  // namespace navigation
