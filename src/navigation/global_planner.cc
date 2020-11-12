@@ -200,6 +200,16 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 
 //========================= VISUALIZATION ============================//
 
+void GlobalPlanner::plotGlobalPath(const vector<string> &global_path, amrl_msgs::VisualizationMsg &msg){
+	for (size_t i=0; i<global_path.size()-1; i++){
+		string start_key = global_path[i];
+		string end_key = global_path[i+1];
+		Vector2f start_loc = nav_map_[start_key].loc;
+		Vector2f end_loc = nav_map_[end_key].loc;
+		visualization::DrawLine(start_loc, end_loc, 0x009c08, msg);
+	}
+}
+
 // Done: Connor
 void GlobalPlanner::plotNodeNeighbors(const Node &node, amrl_msgs::VisualizationMsg &msg){
 	// Visualize the node and it's immediate neighbors using msg (defined in line 52)

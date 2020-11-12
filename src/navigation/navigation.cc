@@ -26,7 +26,7 @@
 #include "amrl_msgs/VisualizationMsg.h"
 #include "glog/logging.h"
 #include "ros/ros.h"
-#include "stdio.h" // Mark added
+#include "stdio.h"
 
 #include "shared/math/geometry.h"
 #include "shared/math/line2d.h"
@@ -581,13 +581,13 @@ void Navigation::Run() {
 		// map_.Load("maps/GDC1.txt");
 		// cout << "Initialized GDC1 map with " << map_.lines.size() << " lines." << endl;
 		// Node Visualization Testing
-		// initializeMap({0,0}, map_resolution_);  // (location, resolution)
+		// initializeMap({0,0});  // (location, resolution)
 	}
 	// plotNodeNeighbors(nav_map_["START"]);
 
 	showObstacles();
 	PathOption BestPath = getGreedyPath(local_goal_vector_);
-	moveAlongPath(BestPath);
+	// moveAlongPath(BestPath);
 	// printPathDetails(BestPath);
 	plotPathDetails(BestPath);
 

@@ -52,6 +52,7 @@ public:
 	std::vector<std::string> getGlobalPath(Eigen::Vector2f nav_goal_loc);
 
 	// Visualization
+	void plotGlobalPath(const std::vector<std::string> &global_path, amrl_msgs::VisualizationMsg &msg);
 	void plotNodeNeighbors(const Node &node, amrl_msgs::VisualizationMsg &msg);
 	void visualizeMap();
 
@@ -59,8 +60,8 @@ private:
 
 	// Helper Functions
 	std::string getNewID(int xi, int yi);
-  	std::vector<Neighbor> getNeighbors(const Node &node);
-  	std::array<geometry::line2f,2> getCushionLines(geometry::line2f edge, float offset);
+	std::vector<Neighbor> getNeighbors(const Node &node);
+	std::array<geometry::line2f,2> getCushionLines(geometry::line2f edge, float offset);
 
 	// Navigation map (key, Node)
 	std::map<std::string, Node> nav_map_;
