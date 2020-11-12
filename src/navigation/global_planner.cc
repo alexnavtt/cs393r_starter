@@ -70,12 +70,13 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 // Done: Alex (untested)
 vector<Neighbor> GlobalPlanner::getNeighbors(const Node &node){
 	vector<Neighbor> neighbors;
+	vector<Neighbor> valid_neighbors;
 
 	int xi = node.index.x();
 	int yi = node.index.y();
 
 	float diagonal_path_length = sqrt(2)*map_resolution_;	// Assuming a straight line path
-	float straight_path_length  = map_resolution_;			// Straight line distance
+	float straight_path_length = map_resolution_;					// Straight line distance
 
 	// Note the each neighbor has the form {ID, curvature, path length, index}
 	neighbors.push_back({Vector2i(xi-1, yi+1), getNewID(xi-1, yi+1), diagonal_path_length, 0});	// Left and up
@@ -87,7 +88,14 @@ vector<Neighbor> GlobalPlanner::getNeighbors(const Node &node){
 	neighbors.push_back({Vector2i(xi  , yi-1), getNewID(xi,   yi-1), straight_path_length, 7});	// Directly down
 	neighbors.push_back({Vector2i(xi+1, yi-1), getNewID(xi+1, yi-1), diagonal_path_length, 8});	// Right and down
 
-	return neighbors;
+	// Only pass valid neighbors
+	for(size_t i=0; i<neighbors.size(); i++){
+		if ( isValidNeighbor(node, neighbors[i]) ){
+			valid_neighbors.push_back(neighbors[i]);
+		}
+	}
+
+	return valid_neighbors;
 }
 
 // Done: Alex (untested)
@@ -130,48 +138,45 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 //========================= PATH PLANNING ============================//
 
 vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
-	frontier_.Push("START", 0.0);
-	// bool navigation_success = false;
-
+	bool navigation_success = false;
 	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
 	while(!frontier_.Empty() && loop_counter < 1000)
 	{
+		// Get key for the lowest-priority node in frontier_ and then remove it
 		string current_key = frontier_.Pop();
 		Node current_node = nav_map_[current_key];
-		
+
 		// Are we there yet?
-		if ( (current_node.loc - nav_goal_loc).norm() < map_resolution_/2 )
+		if ( (nav_goal_loc - current_node.loc).norm() < map_resolution_/2 )
 		{
-			// navigation_success = true;	// had to comment this out since it was a variable in navgiation - Alex
+			navigation_success = true;
 			break;
 		}
 
 		for(auto &next_neighbor : current_node.neighbors)
 		{
-			// Skip if not valid (intersects with map)
 			float new_cost = current_node.cost + next_neighbor.path_length;
-			cout << new_cost << endl;
-
-			bool uncharted = (nav_map_.count(next_neighbor.key) == 0); // change to count()
-			if (uncharted){
-				//make NewNode out of neighbor
+			// Is this the first time we've seen this node?
+			bool unexplored = !nav_map_.count(next_neighbor.key);
+			if (unexplored){
+				//make new Node out of neighbor, and populate its neighbors
+				Node new_node = newNode(current_node, next_neighbor.neighbor_index);
+				nav_map_[new_node.key] = new_node;
 			}
-			
-			// first condition on this if statement: If a map can't find() an element corresponding to
-		  // the key, it returns the iterator corresponding to its end(), so you can compare to that
-			if (uncharted or (new_cost < nav_map_[next_neighbor.key].cost))
+			// Assume that neighbors and nodes at the same location have the same keys
+			if (unexplored or (new_cost < nav_map_[next_neighbor.key].cost))
 			{
-				//A*
+				nav_map_[next_neighbor.key].cost = new_cost;
+				// L1 norm or Manhattan distance (change to 1.05 or 1.1 if you want to inflate it)
+				float heuristic = 1.0*(nav_goal_loc - nav_map_[next_neighbor.key].loc).lpNorm<1>();
+				frontier_.Push(next_neighbor.key, new_cost+heuristic);
 			}
 		}
 		loop_counter++;
 	}
-	// look at frontier, get viable neighbors (not in collision)
-	// for each neighbor, get neighbor_cost
-	// if neighbor has never been visited OR neighbor_cost is lower than that node's cost:
-	//   set that node's cost to neighbor_cost
-	//   compute priority = neighbor_cost + heuristic(goal, neighbor)
-	//   add that to frontier by order of priority
+	if (navigation_success) cout << "Global path success!" << endl;
+	else cout << "Global path failure." << endl;
+
 	vector<string> global_path;
 	global_path.push_back("START");
 	return global_path;
