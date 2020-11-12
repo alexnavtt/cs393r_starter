@@ -144,10 +144,11 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	bool global_path_success = false;
 	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
+	string current_key;
 	while(!frontier_.Empty() && loop_counter < 1000)
 	{
 		// Get key for the lowest-priority node in frontier_ and then remove it
-		string current_key = frontier_.Pop();
+		current_key = frontier_.Pop();
 		Node current_node = nav_map_[current_key];
 
 		// Are we there yet?
@@ -181,7 +182,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	if (global_path_success){
 		cout << "Global path success!" << endl;
 		// Backtrace optimal A* path
-		string path_key = current_node.key;
+		string path_key = current_key;
 		while (path_key != "START"){
 			global_path.push_back(path_key);
 			path_key = nav_map_[path_key].parent;
