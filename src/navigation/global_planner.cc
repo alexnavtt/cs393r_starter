@@ -132,13 +132,14 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 	start_node.neighbors = getNeighbors(start_node);
 
 	nav_map_[start_node.key] = start_node;
+	frontier_.Push("START", 0.0);
 }
 
 
 //========================= PATH PLANNING ============================//
 
 vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
-	bool navigation_success = false;
+	bool global_path_success = false;
 	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
 	while(!frontier_.Empty() && loop_counter < 1000)
 	{
@@ -149,7 +150,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 		// Are we there yet?
 		if ( (nav_goal_loc - current_node.loc).norm() < map_resolution_/2 )
 		{
-			navigation_success = true;
+			global_path_success = true;
 			break;
 		}
 
@@ -174,7 +175,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 		}
 		loop_counter++;
 	}
-	if (navigation_success) cout << "Global path success!" << endl;
+	if (global_path_success) cout << "Global path success!" << endl;
 	else cout << "Global path failure." << endl;
 
 	vector<string> global_path;
