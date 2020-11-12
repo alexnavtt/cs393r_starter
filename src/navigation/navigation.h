@@ -21,9 +21,7 @@
 
 #include <vector>
 #include <algorithm>
-#include <list>
 #include <map>
-#include <queue>
 
 #include "eigen3/Eigen/Dense"
 #include "geometry_msgs/Pose2D.h"
@@ -73,11 +71,6 @@ struct Node{
   std::string parent;                   // Parent of the node on the optimal path                
   std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
   std::string key;                      // Unique identifier
-  bool operator<(const Node& rhs) const
-  {
-    // > for lowest cost sorting like how we want
-    return cost > rhs.cost;
-  }
 };
 
 class Navigation {
