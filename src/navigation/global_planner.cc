@@ -32,13 +32,22 @@ float GlobalPlanner::edgeCost(const Node &node_A, const Node &node_B){
 
 // Helper Function (untested)
 // outputs 2 lines parallel to edge that are displaced by a given offset
-std::array<line2f,2> GlobalPlanner::getCushionLines(line2f edge, float offset){
+std::array<line2f,4> GlobalPlanner::getCushionLines(line2f edge, float offset){
+	std::array<line2f, 4> bounding_box;
+	Vector2f edge_unit_vector = (edge.p1 - edge.p0)/(edge.p1 - edge.p0).norm();
+	Vector2f extended_edge = edge.p1 + offset* edge_unit_vector;   
+
 	Vector2f normal_vec = edge.UnitNormal();
 	Vector2f cushion_A_point_1 = edge.p0 + normal_vec * offset;
-	Vector2f cushion_A_point_2 = edge.p1 + normal_vec * offset;
+	Vector2f cushion_A_point_2 = extended_edge + normal_vec * offset;
 	Vector2f cushion_B_point_1 = edge.p0 - normal_vec * offset;
-	Vector2f cushion_B_point_2 = edge.p1 - normal_vec * offset;
-	return {line2f(cushion_A_point_1, cushion_A_point_2), line2f(cushion_B_point_1, cushion_B_point_2)};
+	Vector2f cushion_B_point_2 = extended_edge - normal_vec * offset;
+
+	bounding_box[0] = line2f(cushion_A_point_1, cushion_A_point_2);
+	bounding_box[1] = line2f(cushion_B_point_1, cushion_B_point_2);
+	bounding_box[2] = line2f(cushion_A_point_1, cushion_B_point_1);
+	bounding_box[3] = line2f(cushion_A_point_2, cushion_B_point_2);
+	return bounding_box;
 }
 
 // Done: Alex (untested)
@@ -58,11 +67,11 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	// Check for collisions
 	for (const line2f map_line : map_.lines)
     {
-		bool intersects_main = map_line.Intersects(edge);
-		bool intersects_cushion_0 = map_line.Intersects(cushion_lines[0]);
-		bool intersects_cushion_1 = map_line.Intersects(cushion_lines[1]);
-		if (intersects_main or intersects_cushion_0 or intersects_cushion_1)
-			return false;
+		bool intersection = map_line.Intersects(edge);
+		for (const line2f bounding_box_edge : cushion_lines){
+			intersection = intersection or map_line.Intersects(bounding_box_edge);
+		}
+		if (intersection) return false;
     }
 
 	return true;

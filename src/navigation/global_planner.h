@@ -61,7 +61,7 @@ private:
 	// Helper Functions
 	std::string getNewID(int xi, int yi);
 	std::vector<Neighbor> getNeighbors(const Node &node);
-	std::array<geometry::line2f,2> getCushionLines(geometry::line2f edge, float offset);
+	std::array<geometry::line2f,4> getCushionLines(geometry::line2f edge, float offset);
 
 	// Navigation map (key, Node)
 	std::map<std::string, Node> nav_map_;
