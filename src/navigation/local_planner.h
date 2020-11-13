@@ -8,65 +8,65 @@
 #include "ros/ros.h"
 #include "amrl_msgs/VisualizationMsg.h"
 #include "visualization/visualization.h"
+#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
+#include "geometry_msgs/Twist.h"
+#include "nav_types.h"
 
-struct PathOption {
-	float curvature;
-	float clearance;
-	float free_path_length;
-	Eigen::Vector2f obstruction;
-	Eigen::Vector2f closest_point;
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-};
-
-struct Obstacle{
-	Eigen::Vector2f loc;
-	float timestamp;
-};
+namespace navigation{
 
 class LocalPlanner{
 public:
 	// Constructor
 	LocalPlanner();
 
-	// Setters/Getters
-	void setState(float x, float y, float theta);
-	geometry_msgs::Pose2D getState();
+	// Set the weights for the local planner cost function
+	void setWeights(float w_FPL, float w_C, float w_DTG);
+	// Get the best path towards the goal
+	PathOption getGreedyPath(Eigen::Vector2f goal_loc, const std::list<Obstacle> &obstacle_list);
 
-	void setObstacleMemory(float t);
-	float getObstacleMemory();
+	/* -------- Helper Functions ---------- */
+	void printPathDetails(PathOption path, Eigen::Vector2f goal_loc);
 
-	void setVisionAngle(float theta);
-	float getVisionAngle();
-
-	void setPlannerWeights(float w_FPL, float w_C, float w_DTG);
-	std::vector<float> getPlannerWeights();
-
-	// Public API
-	void importObstacles(std::vector<Eigen::Vector2f> &obstacles);
-	PathOption getGreedyPath();
-
-	void showPaths(amrl_msgs::VisualizationMsg&);
+	/* -------- Visualization Functions -------- */
+	void plotPathDetails(PathOption path, Eigen::Vector2f goal_loc, amrl_msgs::VisualizationMsg &msg);
 
 private:
-	// Called by importOstacles
-	void trimObstacles(float timestamp);
 
-	// Called by getGreedyPlannerPath
-	void createPossiblePaths();
-	void predictCollisions();
+	/* ----- Helper Functions ----- */
 
-	// Private Members
-	std::list<Obstacle> ObstacleList;
-	std::vector<PathOption> PossiblePaths;
+	// Called by getGreedyPath
+	void createPossiblePaths(int num);
+	void predictCollisions(PathOption& path, const Eigen::Vector2f goal_loc, const std::list<Obstacle> &obstacle_list);
+	void calculateClearance(PathOption& path, const std::list<Obstacle> &obstacle_list);
+	void trimPathLength(PathOption &path, Eigen::Vector2f goal);
 
+
+	/* --- Private Members --- */
+
+	// Car geometry
+	float car_width_;	
+	float car_length_;
+	float padding_;	
+	float wheelbase_;	
+	Eigen::Vector2f pmin_;
+	Eigen::Vector2f pdif_;
+	Eigen::Vector2f pmax_;
+
+	// Planner Parameters
+	float observation_delay_;
+	float actuation_delay_;
+	float vision_angle_;  
+	float vision_range_; 		// based on sim, grid squares are 2m
+	float curvature_max_;		// can take turns as tight as 1m
+	float clearance_limit_;
+	
+	// Paths
+	std::vector<PathOption> PossiblePaths_;
 	float free_path_length_weight_;
 	float clearance_weight_;
 	float distance_to_goal_weight_;
-
-	geometry_msgs::Pose2D state_;
-
-	float obstacle_memory_; 	// Time to keep old obstacles in seconds
-	float vision_angle_;		// The observation angle of the LiDAR in radians (assumed to be symmetrical about the x-axis)
 };
+
+} // namespace navigation
 
 #endif

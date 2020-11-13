@@ -30,6 +30,8 @@
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "vector_map/vector_map.h"
 #include "global_planner.h"
+#include "local_planner.h"
+#include "nav_types.h"  // contains obstacle and path definitions
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -40,22 +42,6 @@ namespace ros {
 
 namespace navigation {
 
-struct PathOption {
-  float curvature;
-  float clearance;
-  float free_path_length;
-  float distance_to_goal;
-  float cost;
-  Eigen::Vector2f obstruction;
-  Eigen::Vector2f closest_point;
-  Eigen::Vector2f end_point; 
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-};
-
-struct Obstacle{
-  Eigen::Vector2f loc;
-  double timestamp;
-};
 
 class Navigation {
  public:
@@ -89,29 +75,31 @@ class Navigation {
   float getObstacleMemory();
   // Set and get the weights for the local planner cost function
   void setLocalPlannerWeights(float w_FPL, float w_C, float w_DTG);
-  std::vector<float> getLocalPlannerWeights();
   // Scale velocities to stay withing acceleration limits
   float limitVelocity(float vel);
   // Move along a given path
   void moveAlongPath(PathOption path);
   // Publish a drive command
   void driveCar(float curvature, float velocity);
-  // Get the best path towards the goal
-  PathOption getGreedyPath(Eigen::Vector2f goal_loc);
+  // Check to see if the nav goal has been reached
+  void checkReached();
 
   /* -------- Helper Functions ---------- */
   Eigen::Vector2f BaseLink2Odom(Eigen::Vector2f p);
   Eigen::Vector2f Odom2BaseLink(Eigen::Vector2f p);
-  void printPathDetails(PathOption path);
   void printVector(Eigen::Vector2f print_vector, std::string vector_name);
 
 
   /* -------- Visualization Functions -------- */
-  void plotPathDetails(PathOption path);
-  void showLocalPaths();
   void showObstacles();
 
  private:
+
+  /* -------- Navigation Objects -------- */
+ 
+  LatencyCompensator LC_;
+  LocalPlanner local_planner_;
+  GlobalPlanner global_planner_;
 
   /* ----------- Robot State ------------ */
 
@@ -128,48 +116,30 @@ class Navigation {
   // Odometry-reported robot angle
   float odom_angle_;
   // Add a latency compensator
-  LatencyCompensator LC_;
+  
 
   /* ------ Frame Transformations ------ */
   Eigen::Matrix2f R_odom2base_;
   Eigen::Matrix2f R_map2odom_;
 
-  /* --------- Global Planning --------- */
-  GlobalPlanner global_planner_;
+  /* --------- Navigation Planning --------- */
   // Whether navigation is complete
   bool nav_complete_;
   // Navigation goal location
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle
-  // float nav_goal_angle_;
+  float nav_goal_angle_;
 
-  /* --------- Local Planning ---------- */
+  /* --------- Obstacles ---------- */
 
   // List of all obstacles in memory
   std::list<Obstacle> ObstacleList_;
-  // List of all paths being considered
-  std::vector<PathOption> PossiblePaths_;
-  // Weight associated with how far the robot is able to travel on a path
-  float free_path_length_weight_;
-  // Wieght associated with how far the robot is from the nearest obstacle on a path
-  float clearance_weight_;
-  // Weight associated with how close the robot comes to the goal points on a path
-  float distance_to_goal_weight_;
-  // Time to keep old obstacles in seconds
+  std::list<Obstacle> BaseLinkObstacleList_;
   float obstacle_memory_;  
-  // Obstacle Clearnace
-  float clearance_;
 
   // Remove from memory any old or deprecated obstacles - called by ObservePointCloud
   void trimObstacles(double now);
 
-  // Called by getGreedyPath
-  void createPossiblePaths(float num);
-  void predictCollisions(PathOption &path);
-  void calculateClearance(PathOption &path);
-  void trimPathLength(PathOption &path, Eigen::Vector2f goal);
-
-  // LocalPlanner planner_;
 };
 
 }  // namespace navigation
