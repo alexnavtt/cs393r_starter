@@ -606,7 +606,7 @@ void Navigation::Run() {
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);
 	
-	while(1){
+	while(ros::ok()){
 		ros::Rate(1).sleep();
 	}
 }

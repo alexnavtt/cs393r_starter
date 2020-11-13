@@ -117,7 +117,7 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 	int dy = (neighbor_index < 3) - (neighbor_index > 5);
 
 	new_node.loc 	   = old_node.loc + map_resolution_ * Vector2f(dx, dy);
-	new_node.index 	   = old_node.index + Eigen::Vector2i(dx, dy);
+	new_node.index 	   = old_node.index + Vector2i(dx, dy);
 	new_node.cost 	   = old_node.cost + edgeCost(old_node, new_node);
 	new_node.parent    = old_node.key;
 	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y());
@@ -174,35 +174,40 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 
 		for(auto &next_neighbor : current_node.neighbors)
 		{
-			// Is this the first time we've seen this node?
+			string neighbor_id = next_neighbor.key;
 			bool unexplored = !nav_map_.count(next_neighbor.key);
+			float neighbor_cost = current_node.cost + next_neighbor.path_length;
+
+			// Is this the first time we've seen this node?
 			if (unexplored){
 				// Make new Node out of neighbor
 				Node new_node = newNode(current_node, next_neighbor.neighbor_index);
-			}
-			float new_cost = current_node.cost + next_neighbor.path_length;
-			if (unexplored or (new_cost < nav_map_[next_neighbor.key].cost))
-			{
-				nav_map_[next_neighbor.key].cost = new_cost;
-				// L1 norm or Manhattan distance (change to 1.05 or 1.1 if you want to inflate it)
-				// float heuristic = 1.0*(nav_goal_loc - nav_map_[next_neighbor.key].loc).lpNorm<1>();
-				// 2-norm
-				// float heuristic = 0.0*(nav_goal_loc - nav_map_[next_neighbor.key].loc).norm();
-				float heuristic = 1.0*getHeuristic(nav_goal_loc, nav_map_[next_neighbor.key].loc);
-				frontier_.Push(next_neighbor.key, new_cost+heuristic);
+				float heuristic = 1.0*getHeuristic(nav_goal_loc, new_node.loc);
+				frontier_.Push(neighbor_id, neighbor_cost+heuristic);
+			
+			}else if (neighbor_cost < nav_map_[neighbor_id].cost){
+				nav_map_[neighbor_id].cost = neighbor_cost;
+				nav_map_[neighbor_id].parent = current_node.key;
+				float heuristic = 1.0*getHeuristic(nav_goal_loc, nav_map_[neighbor_id].loc);
+				frontier_.Push(neighbor_id, neighbor_cost+heuristic);
+
 			}
 		}
 		loop_counter++;
 	}
+
 	vector<string> global_path;
 	if (global_path_success){
 		cout << "After " << loop_counter << " iterations, global path success!" << endl;
 		// Backtrace optimal A* path
 		string path_key = current_key;
+		float total_dist_travelled = 0;
 		while (path_key != "START"){
 			global_path.push_back(path_key);
+			total_dist_travelled += edgeCost(nav_map_[path_key], nav_map_[nav_map_[path_key].parent]);
 			path_key = nav_map_[path_key].parent;
 		}
+		cout << "Travelled " << total_dist_travelled << "m" << endl;
 		// If you want to go from start to goal:
 		std::reverse(global_path.begin(), global_path.end());
 	}
