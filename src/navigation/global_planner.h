@@ -50,9 +50,11 @@ public:
 	void visitNode(Node &node);
 	// Get the best sequence of node keys to the nav_goal_ point
 	std::vector<std::string> getGlobalPath(Eigen::Vector2f nav_goal_loc);
+	float getHeuristic(const Eigen::Vector2f &goal_loc, const Eigen::Vector2f &node_loc);
 
 	// Visualization
 	void plotGlobalPath(const std::vector<std::string> &global_path, amrl_msgs::VisualizationMsg &msg);
+	void plotFrontier(amrl_msgs::VisualizationMsg &msg);
 	void plotNodeNeighbors(const Node &node, amrl_msgs::VisualizationMsg &msg);
 	void visualizeMap();
 

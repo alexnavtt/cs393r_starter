@@ -573,7 +573,6 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
-		cout << "hey!" << endl;
 		local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
 		time_prev_ = ros::Time::now();
 		nav_goal_loc_ = Vector2f(0,20); //random
@@ -592,6 +591,7 @@ void Navigation::Run() {
 
 	vector<string> global_path = global_planner_.getGlobalPath(nav_goal_loc_);
 	global_planner_.plotGlobalPath(global_path, global_viz_msg_);
+	global_planner_.plotFrontier(global_viz_msg_);
 
 	// If we have reached our goal we can stop (not relevant for dynamic goal)
 	float dist_to_goal = (odom_loc_-local_goal_vector_).norm();

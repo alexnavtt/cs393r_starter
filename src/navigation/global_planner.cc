@@ -62,7 +62,7 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	Vector2f offset(map_resolution_ * x_offset, map_resolution_ * y_offset);
 	Vector2f neighbor_loc = node.loc + offset;
 	const line2f edge(node.loc, neighbor_loc);
-	auto cushion_lines = getCushionLines(edge, 1.0);
+	auto cushion_lines = getCushionLines(edge, 0.25);
 
 	// Check for collisions
 	for (const line2f map_line : map_.lines)
@@ -159,7 +159,7 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	bool global_path_success = false;
 	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
 	string current_key;
-	while(!frontier_.Empty() && loop_counter < 100000)
+	while(!frontier_.Empty() && loop_counter < 1E6)
 	{
 		// Get key for the lowest-priority node in frontier_ and then remove it
 		current_key = frontier_.Pop();
@@ -174,19 +174,21 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 
 		for(auto &next_neighbor : current_node.neighbors)
 		{
-			float new_cost = current_node.cost + next_neighbor.path_length;
 			// Is this the first time we've seen this node?
 			bool unexplored = !nav_map_.count(next_neighbor.key);
 			if (unexplored){
 				// Make new Node out of neighbor
 				Node new_node = newNode(current_node, next_neighbor.neighbor_index);
 			}
-			// Assume that neighbors and nodes at the same location have the same keys
+			float new_cost = current_node.cost + next_neighbor.path_length;
 			if (unexplored or (new_cost < nav_map_[next_neighbor.key].cost))
 			{
 				nav_map_[next_neighbor.key].cost = new_cost;
 				// L1 norm or Manhattan distance (change to 1.05 or 1.1 if you want to inflate it)
-				float heuristic = 1.0*(nav_goal_loc - nav_map_[next_neighbor.key].loc).lpNorm<1>();
+				// float heuristic = 1.0*(nav_goal_loc - nav_map_[next_neighbor.key].loc).lpNorm<1>();
+				// 2-norm
+				// float heuristic = 0.0*(nav_goal_loc - nav_map_[next_neighbor.key].loc).norm();
+				float heuristic = 1.0*getHeuristic(nav_goal_loc, nav_map_[next_neighbor.key].loc);
 				frontier_.Push(next_neighbor.key, new_cost+heuristic);
 			}
 		}
@@ -211,16 +213,48 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	return global_path;
 }
 
+float GlobalPlanner::getHeuristic(const Vector2f &goal_loc, const Vector2f &node_loc){
+	Vector2f abs_diff_loc = (goal_loc - node_loc).cwiseAbs();
+	// 4-grid heuristic is just Manhattan distance
+	// float heuristic = abs_diff_loc.x() + abs_diff_loc.y();
+
+	// 2-norm doesn't seem to work either
+	// float heuristic = abs_diff_loc.norm();
+
+	// 8-grid heuristic is a little bit complex
+	float straight_length = std::abs(abs_diff_loc.x()-abs_diff_loc.y());
+	float diag_length = sqrt(2)*(abs_diff_loc.x()+abs_diff_loc.y()-straight_length)*0.5;
+	float heuristic = straight_length + diag_length;
+
+	// No hueristic
+	// float hueristic = 0;
+
+	return heuristic;
+}
+
 
 //========================= VISUALIZATION ============================//
 
 void GlobalPlanner::plotGlobalPath(const vector<string> &global_path, amrl_msgs::VisualizationMsg &msg){
+	Vector2f start = nav_map_[global_path.front()].loc;
+	Vector2f goal = nav_map_[global_path.back()].loc;
+	visualization::DrawCross(start, 0.5, 0xff0000, msg);
+	visualization::DrawCross(goal, 0.5, 0xff0000, msg);
+
 	for (size_t i=0; i<global_path.size()-1; i++){
 		string start_key = global_path[i];
 		string end_key = global_path[i+1];
 		Vector2f start_loc = nav_map_[start_key].loc;
 		Vector2f end_loc = nav_map_[end_key].loc;
 		visualization::DrawLine(start_loc, end_loc, 0x009c08, msg);
+	}
+}
+
+void GlobalPlanner::plotFrontier(amrl_msgs::VisualizationMsg &msg){
+	while(!frontier_.Empty()){
+		string frontier_key = frontier_.Pop();
+		Vector2f frontier_loc = nav_map_[frontier_key].loc;
+		visualization::DrawPoint(frontier_loc, 0x0000ff, msg);
 	}
 }
 
