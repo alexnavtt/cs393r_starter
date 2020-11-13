@@ -53,7 +53,7 @@ public:
 	float getHeuristic(const Eigen::Vector2f &goal_loc, const Eigen::Vector2f &node_loc);
 
 	// Visualization
-	void plotGlobalPath(const std::vector<std::string> &global_path, amrl_msgs::VisualizationMsg &msg);
+	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
 	void plotFrontier(amrl_msgs::VisualizationMsg &msg);
 	void plotNodeNeighbors(const Node &node, amrl_msgs::VisualizationMsg &msg);
 	void visualizeMap();
@@ -73,6 +73,8 @@ private:
 	SimpleQueue<std::string, float> frontier_;
 	// Blueprint map of the environment
 	vector_map::VectorMap map_;
+	// Global path variable
+	std::vector<std::string> global_path_;
 };
 
 #endif
