@@ -165,8 +165,8 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 		current_key = frontier_.Pop();
 		Node current_node = nav_map_[current_key];
 
-		// Are we there yet?
-		if ( (nav_goal_loc - current_node.loc).norm() < map_resolution_/2 )
+		// Are we there yet? (0.71 is sqrt(2)/2 with some added buffer)
+		if ( (nav_goal_loc - current_node.loc).norm() < 0.71*map_resolution_ )
 		{
 			global_path_success = true;
 			break;
