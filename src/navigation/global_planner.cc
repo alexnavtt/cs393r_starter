@@ -289,7 +289,7 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 		visualization::DrawLine(robot_loc, node_loc, 0xffff00, msg);
 		j++;
 	}
-	Node closest_path_node_outside = nav_map_[global_path_[j]];
+	Node closest_path_node_outside = nav_map_[global_path_[j-1]];
 
 	// Draw Closest Point outside circle
 	visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
