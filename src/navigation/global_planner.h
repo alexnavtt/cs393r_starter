@@ -51,6 +51,8 @@ public:
 	// Get the best sequence of node keys to the nav_goal_ point
 	std::vector<std::string> getGlobalPath(Eigen::Vector2f nav_goal_loc);
 	float getHeuristic(const Eigen::Vector2f &goal_loc, const Eigen::Vector2f &node_loc);
+	// Finds closest global path node to rpobot location that it ouside of circle
+	Node getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg);
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);

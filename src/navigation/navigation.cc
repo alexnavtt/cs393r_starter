@@ -131,6 +131,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 	nav_goal_loc_ = loc;
 	nav_goal_angle_ = angle;
+	// std::cout << "Test" << std::endl;
 
 	global_planner_.initializeMap(robot_loc_); 
 	vector<string> global_path = global_planner_.getGlobalPath(nav_goal_loc_);
@@ -328,6 +329,8 @@ void Navigation::Run() {
 		moveAlongPath(BestPath);
 		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
+		Node closest_path_node_outside; 
+		closest_path_node_outside = global_planner_.getClosestPathNode(robot_loc_, global_viz_msg_);
 	}
 
 	// Visualization
