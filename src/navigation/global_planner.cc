@@ -243,15 +243,10 @@ float GlobalPlanner::getHeuristic(const Vector2f &goal_loc, const Vector2f &node
 // Post: will actually need to pass in the node location to the drive along global path function
 Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg){
 	// Draw Circle around Robot's Location that will Intersect with Global Path
-	float circle_rad_min = 1.0;
+	float circle_rad_min = 3.0;
 	visualization::DrawArc(robot_loc,circle_rad_min,0.0,2*M_PI,0x000000, msg);
 
-	// ask rule of thumb on this
-	// bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor)
-
-	//for loop to go through nodes in global path 
-	//and find one that is closest to the robot_location
-	// set it to high value at first
+	// Find the closest node to the robot
 	float min_distance = 100;
 	Node closest_path_node;
 	int starting_point_index = 0;
@@ -267,33 +262,32 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 		}
 	}
 
-	//check if closest_path_node is outside circle radius
+	// Check if the closest node is outside circle radius
 	if (min_distance > circle_rad_min){
 		Node closest_path_node_outside = closest_path_node;
-		visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
-		visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
-		std::cout << "min_distance is:\t " << min_distance << std::endl;
+		// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
+		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
+		// std::cout << "min_distance is:\t " << min_distance << std::endl;
 		return closest_path_node_outside;
-		}
-
-	//goes into while loop while path nodes are within circle radius
-	dist_to_node_loc = min_distance;
-	int j;
-	j = starting_point_index+1;
-	while(dist_to_node_loc < circle_rad_min)
-	{
-		Vector2f node_loc = nav_map_[global_path_[j]].loc;
-		dist_to_node_loc = (robot_loc-node_loc).norm();	
-		std::cout << "Distance to Next Node in Map is:\t " << dist_to_node_loc << std::endl;
-		visualization::DrawCross(node_loc, 0.15, 0xffff00, msg);
-		visualization::DrawLine(robot_loc, node_loc, 0xffff00, msg);
-		j++;
 	}
-	Node closest_path_node_outside = nav_map_[global_path_[j-1]];
+
+	// Extract the first node after the closest node that is outside the circle
+	dist_to_node_loc = min_distance;
+	Node closest_path_node_outside;
+	for(size_t j = starting_point_index; j < global_path_.size(); j++)
+	{
+		closest_path_node_outside = nav_map_[global_path_[j]];
+		dist_to_node_loc = (robot_loc - closest_path_node_outside.loc).norm();
+
+		// std::cout << "Distance to Next Node in Map is:\t " << dist_to_node_loc << std::endl;
+		// visualization::DrawCross(closest_path_node_outside.loc, 0.15, 0xffff00, msg);
+		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xffff00, msg);
+		if (dist_to_node_loc > circle_rad_min) break;
+	}
 
 	// Draw Closest Point outside circle
-	visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
-	visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
+	// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
+	// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
 	return closest_path_node_outside;
 }
 

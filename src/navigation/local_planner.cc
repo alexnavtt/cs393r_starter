@@ -286,9 +286,11 @@ PathOption LocalPlanner::getGreedyPath(Vector2f goal_loc, const std::list<Obstac
 		float distance_to_goal_cost =  (distance_to_goal/min_distance_to_goal) * distance_to_goal_weight_;
 
 		float cost = free_path_length_cost + clearance_padded_cost + distance_to_goal_cost;
+		PossiblePaths_[i].cost = cost;
+		
 		if (cost < min_cost) {
 			min_cost = cost;
-			BestPath = PossiblePaths_.at(i);
+			BestPath = PossiblePaths_[i];
 			BestPath.cost = cost;
 		}
 	}

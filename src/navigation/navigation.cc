@@ -142,6 +142,9 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
 	robot_loc_ = loc;
 	robot_angle_ = angle;
+
+	R_map2base_ << cos(angle), -sin(angle),
+			       sin(angle),  cos(angle);
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc, float angle,
@@ -299,7 +302,7 @@ void Navigation::checkReached(){
 // Frame Transformations
 Eigen::Vector2f Navigation::BaseLink2Odom(Eigen::Vector2f p) {return odom_loc_ + R_odom2base_*p;}
 Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base_.transpose()*(p - odom_loc_);}
-
+Eigen::Vector2f Navigation::Map2BaseLink(Eigen::Vector2f p) {return R_map2base_.transpose()*(p - robot_loc_);}
 
 
 // Main Loop
@@ -314,7 +317,7 @@ void Navigation::Run() {
 			ros::spinOnce();
 			ros::Rate(10).sleep();
 		}
-		local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
+		// local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
 		time_prev_ = ros::Time::now();
 		// Node Visualization Testing
 	}
@@ -324,13 +327,17 @@ void Navigation::Run() {
 		ros::Duration(0.5).sleep();
 
 	}else{
+		// Extract the next node to aim for by the local planner
+		Node target_node = global_planner_.getClosestPathNode(robot_loc_, global_viz_msg_);
+		local_goal_vector_ = Map2BaseLink(target_node.loc);
 
+		// Find the greedy local path to this point
 		PathOption BestPath = local_planner_.getGreedyPath(local_goal_vector_, BaseLinkObstacleList_);
 		moveAlongPath(BestPath);
-		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
+
+		// Visualization/Diagnostics
+		local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
-		Node closest_path_node_outside; 
-		closest_path_node_outside = global_planner_.getClosestPathNode(robot_loc_, global_viz_msg_);
 	}
 
 	// Visualization

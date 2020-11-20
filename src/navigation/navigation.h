@@ -87,6 +87,7 @@ class Navigation {
   /* -------- Helper Functions ---------- */
   Eigen::Vector2f BaseLink2Odom(Eigen::Vector2f p);
   Eigen::Vector2f Odom2BaseLink(Eigen::Vector2f p);
+  Eigen::Vector2f Map2BaseLink(Eigen::Vector2f p);
   void printVector(Eigen::Vector2f print_vector, std::string vector_name);
 
 
@@ -121,6 +122,7 @@ class Navigation {
   /* ------ Frame Transformations ------ */
   Eigen::Matrix2f R_odom2base_;
   Eigen::Matrix2f R_map2odom_;
+  Eigen::Matrix2f R_map2base_;
 
   /* --------- Navigation Planning --------- */
   // Whether navigation is complete
