@@ -56,7 +56,7 @@ public:
 	Node getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg);
 	// Check if we need to replan
 	bool needsReplan();
-	void replan(Eigen::Vector2f robot_loc, std::string failed_target_id);
+	void replan(Eigen::Vector2f robot_loc, Eigen::Vector2f failed_target_loc);
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
@@ -85,6 +85,8 @@ private:
 	std::vector<std::string> global_path_;
 	// Variable checking if we need to replan
 	bool need_replan_ = false;
+	// Locations of all nodes that caused navigation to fail
+	std::vector<Eigen::Vector2f> failed_locs_;
 };
 
 #endif

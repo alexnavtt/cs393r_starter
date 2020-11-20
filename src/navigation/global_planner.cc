@@ -123,6 +123,13 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y());
 	new_node.neighbors = getNeighbors(new_node);
 
+	for (const auto &bad_loc : failed_locs_){
+		if ((new_node.loc - bad_loc).norm() < map_resolution_*3){
+			new_node.neighbors.clear();
+			break;
+		}
+	}
+
 	// Add to node map with key
 	nav_map_[new_node.key] = new_node;
 
@@ -132,6 +139,7 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 // Done: Alex (untested)
 void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 	nav_map_.clear();
+	frontier_.Clear();
 
 	int xi = loc.x()/map_resolution_;
 	int yi = loc.y()/map_resolution_;
@@ -344,34 +352,36 @@ void GlobalPlanner::plotNodeNeighbors(const Node &node, amrl_msgs::Visualization
 
 bool GlobalPlanner::needsReplan(){return need_replan_;}
 
-void GlobalPlanner::replan(Vector2f robot_loc, string failed_target_id){
+void GlobalPlanner::replan(Vector2f robot_loc, Vector2f failed_target_loc){
 	// Find the last visited node
-	for (const string &id : global_path_){
-		if (not nav_map_[id].visited){
-			nav_map_[nav_map_[id].parent].key = "START";
-			nav_map_["START"] = nav_map_[nav_map_[id].parent];
-			break;
-		}
-	}
+	// for (const string &id : global_path_){
+	// 	if (not nav_map_[id].visited){
+	// 		nav_map_[nav_map_[id].parent].key = "START";
+	// 		nav_map_["START"] = nav_map_[nav_map_[id].parent];
+	// 		break;
+	// 	}
+	// }
+	failed_locs_.push_back(failed_target_loc);
+	initializeMap(robot_loc);
 
 	// Unvisit all nodes
-	for (auto it = nav_map_.begin(); it != nav_map_.end(); it++){
-		it->second.visited = false;
-	}
-	nav_map_["START"].visited = true;
+	// for (auto it = nav_map_.begin(); it != nav_map_.end(); it++){
+	// 	it->second.visited = false;
+	// }
+	// nav_map_["START"].visited = true;
 
 	// Clear the global path and start fresh from the current node
-	global_path_.clear();
-	frontier_.Clear();
-	frontier_.Push("START", 0.0);
-	global_path_.push_back("START");
+	// global_path_.clear();
+	// frontier_.Clear();
+	// frontier_.Push("START", 0.0);
+	// global_path_.push_back("START");
 
 	// Invalidate the the node we were trying to get to when navigation failed (and it's neighbors)
-	for (Neighbor &n : nav_map_[failed_target_id].neighbors){
-		if (nav_map_.count(n.key))
-			nav_map_[n.key].neighbors.clear();
-	}
-	nav_map_[failed_target_id].neighbors.clear();
+	// for (Neighbor &n : nav_map_[failed_target_id].neighbors){
+	// 	if (nav_map_.count(n.key))
+	// 		nav_map_[n.key].neighbors.clear();
+	// }
+	// nav_map_[failed_target_id].neighbors.clear();
 
 	getGlobalPath(nav_goal_);
 }
