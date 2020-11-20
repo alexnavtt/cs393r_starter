@@ -89,6 +89,12 @@ class SimpleQueue {
     return false;
   }
 
+  void Clear(){
+    while (!values_.empty()){
+      Pop();
+    }
+  }
+
   private:
   deque<pair<Value, Priority> > values_;
 };
