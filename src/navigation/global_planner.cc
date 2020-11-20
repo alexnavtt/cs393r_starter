@@ -383,15 +383,9 @@ void GlobalPlanner::plotNodeNeighbors(const Node &node, amrl_msgs::Visualization
 
 bool GlobalPlanner::needsReplan(){return need_replan_;}
 
-void GlobalPlanner::replan(Vector2f robot_loc){
+void GlobalPlanner::replan(Vector2f robot_loc, Vector2f bad_loc){
 	// Remove the first unvisited node from future consideration
-	// for (const string id : global_path_){
-	// 	if (not nav_map_[id].visited){
-	// 		nav_map_[id].neighbors.clear();
-	// 		unreachable_locs_.push_back(nav_map_[id].loc);
-	// 		break;
-	// 	}
-	// }
+	unreachable_locs_.push_back(bad_loc);
 	initializeMap(robot_loc);
 	getGlobalPath(nav_goal_);
 }

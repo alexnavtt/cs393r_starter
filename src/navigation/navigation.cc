@@ -345,7 +345,7 @@ void Navigation::Run() {
 
 		checkStalled();
 		if (global_planner_.needsReplan() or isRobotStuck()){
-			global_planner_.replan(robot_loc_);
+			global_planner_.replan(robot_loc_, target_node.loc);
 			cout << "Replan!" << endl;
 		}
 
