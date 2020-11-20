@@ -62,7 +62,7 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	Vector2f offset(map_resolution_ * x_offset, map_resolution_ * y_offset);
 	Vector2f neighbor_loc = node.loc + offset;
 	const line2f edge(node.loc, neighbor_loc);
-	auto cushion_lines = getCushionLines(edge, 0.25);
+	auto cushion_lines = getCushionLines(edge, 0.5);
 
 	// Check for collisions
 	for (const line2f map_line : map_.lines)
@@ -273,6 +273,7 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 	closest_path_node.visited = true;
 
 	// Check if the closest node is outside circle radius
+	need_replan_ = false;
 	if (min_distance > circle_rad_min){
 		need_replan_ = true;
 
