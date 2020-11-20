@@ -326,17 +326,6 @@ void Navigation::Run() {
 	visualization::ClearVisualizationMsg(local_viz_msg_);
 	visualization::ClearVisualizationMsg(global_viz_msg_);
 
-	// Added this section for anything that we only want to happen once (like setup function)
-	// NOTE: This init function is added to only initialize AFTER odometry has been received
-	if  (init_){
-		while (init_ and ros::ok()){
-			ros::spinOnce();
-			ros::Rate(10).sleep();
-		}
-		// local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
-		// time_prev_ = ros::Time::now();
-	}
-
 	if (nav_complete_){
 		// Do nothing is navigation is not active
 		ros::Duration(0.5).sleep();
