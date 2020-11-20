@@ -66,7 +66,7 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 
 	// Check if node is withing range of an unreachable location
 	for (const Vector2f &bad_loc : unreachable_locs_){
-		if ( (bad_loc - neighbor_loc).norm() < 2*map_resolution_)
+		if ( (bad_loc - neighbor_loc).norm() < 10*map_resolution_)
 			return false;
 	}
 
