@@ -304,6 +304,8 @@ void Navigation::checkStalled(){
 	if (not stalled_ and drive_msg_.velocity < 0.01){
 		stalled_ = true;
 		stall_time_ = ros::Time::now();
+	}else if(drive_msg_.velocity > 0.01){
+		stalled_ = false;
 	}
 }
 
@@ -352,6 +354,7 @@ void Navigation::Run() {
 		moveAlongPath(BestPath);
 		checkReached();
 
+		checkStalled();
 		if (global_planner_.needsReplan() or isRobotStuck()){
 			global_planner_.replan();
 			cout << "Replan!" << endl;
