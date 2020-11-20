@@ -135,7 +135,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 	// std::cout << "Test" << std::endl;
 
 	global_planner_.initializeMap(robot_loc_); 
-	vector<string> global_path = global_planner_.getGlobalPath(nav_goal_loc_);
+	global_planner_.getGlobalPath(nav_goal_loc_);
 
 	nav_complete_ = false;
 }

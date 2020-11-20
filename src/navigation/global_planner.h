@@ -29,6 +29,7 @@ struct Node{
   std::string parent;                   // Parent of the node on the optimal path                
   std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
   std::string key;                      // Unique identifier
+  bool visited = false;
 };
 
 class GlobalPlanner{
@@ -49,7 +50,7 @@ public:
 	// Update valid neighbors and edge costs
 	void visitNode(Node &node);
 	// Get the best sequence of node keys to the nav_goal_ point
-	std::vector<std::string> getGlobalPath(Eigen::Vector2f nav_goal_loc);
+	void getGlobalPath(Eigen::Vector2f nav_goal_loc);
 	float getHeuristic(const Eigen::Vector2f &goal_loc, const Eigen::Vector2f &node_loc);
 	// Finds closest global path node to rpobot location that it ouside of circle
 	Node getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg);
@@ -75,8 +76,12 @@ private:
 	SimpleQueue<std::string, float> frontier_;
 	// Blueprint map of the environment
 	vector_map::VectorMap map_;
+	// Current goal
+	Eigen::Vector2f nav_goal_;
 	// Global path variable
 	std::vector<std::string> global_path_;
+	// Recollection of unreachable locations
+	std::vector<Eigen::Vector2f> unreachable_locs_; 
 };
 
 #endif

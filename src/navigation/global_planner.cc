@@ -64,6 +64,12 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	const line2f edge(node.loc, neighbor_loc);
 	auto cushion_lines = getCushionLines(edge, 0.25);
 
+	// Check if node is withing range of an unreachable location
+	for (const Vector2f &bad_loc : unreachable_locs_){
+		if ( (bad_loc - neighbor_loc).norm() < 2*map_resolution_)
+			return false;
+	}
+
 	// Check for collisions
 	for (const line2f map_line : map_.lines)
     {
@@ -155,7 +161,9 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 
 //========================= PATH PLANNING ============================//
 
-vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
+void GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
+	nav_goal_ = nav_goal_loc;
+
 	bool global_path_success = false;
 	int loop_counter = 0; // exit condition if while loop gets stuck (goal unreachable)
 	string current_key;
@@ -217,7 +225,6 @@ vector<string> GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	}
 
 	global_path_ = global_path;
-	return global_path;
 }
 
 float GlobalPlanner::getHeuristic(const Vector2f &goal_loc, const Vector2f &node_loc){
@@ -261,12 +268,23 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 			starting_point_index = i;
 		}
 	}
+	closest_path_node.visited = true;
 
 	// Check if the closest node is outside circle radius
 	if (min_distance > circle_rad_min){
 		Node closest_path_node_outside = closest_path_node;
-		// TODO: Replan global path
-		
+
+		// Remove failed point from consideration
+		for (const string id : global_path_){
+			if (not nav_map_[id].visited){
+				nav_map_[id].neighbors.clear();
+				unreachable_locs_.push_back(nav_map_[id].loc);
+				break;
+			}
+		}
+
+		getGlobalPath(nav_goal_);
+
 		// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
 		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
 		// std::cout << "min_distance is:\t " << min_distance << std::endl;
