@@ -120,7 +120,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		obstacle_memory_(1)
 {
 	global_planner_.setResolution(0.25);
-	setLocalPlannerWeights(2,1,2); //fpl, clearance, dtg
+	setLocalPlannerWeights(5,2,2); //fpl, clearance, dtg
 
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
