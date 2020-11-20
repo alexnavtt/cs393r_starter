@@ -120,6 +120,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		obstacle_memory_(1)
 {
 	global_planner_.setResolution(0.25);
+	setLocalPlannerWeights(2,1,8); //fpl, clearance, dtg
 
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -319,7 +320,6 @@ void Navigation::Run() {
 		}
 		// local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
 		// time_prev_ = ros::Time::now();
-		setLocalPlannerWeights(2,1,8); //fpl, clearance, dtg
 	}
 
 	if (nav_complete_){
@@ -338,8 +338,9 @@ void Navigation::Run() {
 		checkReached();
 
 		// Visualization/Diagnostics
-		local_planner_.printPathDetails(BestPath, local_goal_vector_);
+		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
+		cout << nav_complete_ << endl;
 	}
 
 	// Visualization
