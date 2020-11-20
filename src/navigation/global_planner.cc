@@ -123,6 +123,13 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y());
 	new_node.neighbors = getNeighbors(new_node);
 
+	for (const auto &bad_loc : failed_locs_){
+		if ((new_node.loc - bad_loc).norm() < map_resolution_*3){
+			new_node.neighbors.clear();
+			break;
+		}
+	}
+
 	// Add to node map with key
 	nav_map_[new_node.key] = new_node;
 
@@ -132,6 +139,7 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 // Done: Alex (untested)
 void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 	nav_map_.clear();
+	frontier_.Clear();
 
 	int xi = loc.x()/map_resolution_;
 	int yi = loc.y()/map_resolution_;
@@ -266,7 +274,6 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 
 	// Check if the closest node is outside circle radius
 	if (min_distance > circle_rad_min){
-		closest_path_node.neighbors.clear();
 		need_replan_ = true;
 
 		// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
@@ -342,78 +349,63 @@ void GlobalPlanner::plotFrontier(amrl_msgs::VisualizationMsg &msg){
 
 // Done: Connor
 void GlobalPlanner::plotNodeNeighbors(const Node &node, amrl_msgs::VisualizationMsg &msg){
-	// Visualize the node and it's immediate neighbors using msg (defined in line 52)
-	// Make the node a small cross
-	// Plot the paths between the node and each neighbors (straight lines)
-	// The nodes are arranged and labelled like this:
+	// Visualize the node and it's immediate neighbors
 
-	// 0---1---2     ^ y
-	// |   |   |     |
-	// 3---4---5     o---> x
-	// |   |   |
-	// 6---7---8
-
-	// You will need to make use of the new function I wrote: newNode(const Node &old_node, int neighbor_index) {untested, sorry}
-	// The straight line distance between nodes is contained in the global variable map_resolution_;
-	// I've already put the necessary code in to make it run in the main program so you just need to work here
-
-	// Here is the syntax for the needed visualization functions:
-	// visualization::DrawPoint(const Vector2f& p, uint32_t color, VisualizationMsg& msg)
-	// visualization::DrawLine(const Vector2f& p0, const Vector2f& p1, uint32_t color, VisualizationMsg& msg)
-	// visualization::DrawCross(const Eigen::Vector2f& location, float size, uint32_t color, VisualizationMsg& msg)
-	// visualization::DrawArc(const Vector2f& center, float radius, float start_angle, float end_angle, uint32_t color, VisualizationMsg& msg)
-
-	// And here are some nice options for the uint32_t color inputs in those functions above:
-	// Blue: 0x000dff
-	// Red: 0xff0000
-	// Green: 0x009c08
-	// Orange: 0xff9900
-	// Black: 0x000000
-	// Yellow: 0xffff00
-
-	// Here's some starter code/API example for the node stuff
 	visualization::DrawCross(node.loc,2.0,0xff0000,msg);
 	for (size_t i = 0; i < node.neighbors.size(); i++){
 		// Get the ID for this neighboring node
 		string neighbor_id = node.neighbors[i].key;
-		// // Check if node already exists
-		// if (not nav_map_.count(neighbor_id)){
-		// 	// If it does not, create a temporary new one
-		// 	Node neighbor = newNode(node, i);
-		// }
 		int neighbor_index = node.neighbors[i].neighbor_index;
+
+		// Find the location of the neighbor
 		int dx = (neighbor_index % 3 == 2) - (neighbor_index % 3 == 0);
 		int dy = (neighbor_index < 3) - (neighbor_index > 5);
 		Vector2f neighbor_loc = node.loc + map_resolution_ * Vector2f(dx, dy);
+
+		// Visualize
 		visualization::DrawPoint(neighbor_loc,0xff9900,msg);
-		visualization::DrawLine(node.loc, neighbor_loc, 0x000dff, msg);
-		// Do the plot stuff here
-		
+		visualization::DrawLine(node.loc, neighbor_loc, 0x000dff, msg);		
 	}
 }
 
 bool GlobalPlanner::needsReplan(){return need_replan_;}
 
-void GlobalPlanner::replan(Vector2f robot_loc){
+void GlobalPlanner::replan(Vector2f robot_loc, Vector2f failed_target_loc){
 	// Find the last visited node
-	for (const string &id : global_path_){
-		if (not nav_map_[id].visited){
-			nav_map_[nav_map_[id].parent].key = "START";
-			nav_map_["START"] = nav_map_[nav_map_[id].parent];
-			break;
-		}
-	}
+	// for (const string &id : global_path_){
+	// 	if (not nav_map_[id].visited){
+	// 		nav_map_[nav_map_[id].parent].key = "START";
+	// 		nav_map_["START"] = nav_map_[nav_map_[id].parent];
+	// 		break;
+	// 	}
+	// }
+	failed_locs_.push_back(failed_target_loc);
+	initializeMap(robot_loc);
 
 	// Unvisit all nodes
-	for (auto it = nav_map_.begin(); it != nav_map_.end(); it++){
-		it->second.visited = false;
-	}
+	// for (auto it = nav_map_.begin(); it != nav_map_.end(); it++){
+	// 	it->second.visited = false;
+	// }
+	// nav_map_["START"].visited = true;
 
 	// Clear the global path and start fresh from the current node
-	global_path_.clear();
-	frontier_.Clear();
-	frontier_.Push("START", 0.0);
-	global_path_.push_back("START");
+	// global_path_.clear();
+	// frontier_.Clear();
+	// frontier_.Push("START", 0.0);
+	// global_path_.push_back("START");
+
+	// Invalidate the the node we were trying to get to when navigation failed (and it's neighbors)
+	// for (Neighbor &n : nav_map_[failed_target_id].neighbors){
+	// 	if (nav_map_.count(n.key))
+	// 		nav_map_[n.key].neighbors.clear();
+	// }
+	// nav_map_[failed_target_id].neighbors.clear();
 
 	getGlobalPath(nav_goal_);
+
+	cout << "replanning and avoiding nodes at:" << endl;
+	for (auto &l : failed_locs_){
+		cout << "(" << l.x() << ", " << l.y() << ")" << endl;
+	}
+	cout << endl;
 }
