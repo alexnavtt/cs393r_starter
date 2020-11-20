@@ -350,7 +350,7 @@ void Navigation::Run() {
 		}
 
 		// Visualization/Diagnostics
-		local_planner_.printPathDetails(BestPath, local_goal_vector_);
+		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
 		// cout << nav_complete_ << endl;
 	}

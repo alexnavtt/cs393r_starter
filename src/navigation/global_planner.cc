@@ -245,7 +245,7 @@ float GlobalPlanner::getHeuristic(const Vector2f &goal_loc, const Vector2f &node
 Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg){
 	// Draw Circle around Robot's Location that will Intersect with Global Path
 	float circle_rad_min = 2.0;
-	visualization::DrawArc(robot_loc,circle_rad_min,0.0,2*M_PI,0x000000, msg);
+	visualization::DrawArc(robot_loc,circle_rad_min,0.0,2*M_PI,0x909090, msg);
 
 	// Find the closest node to the robot
 	float min_distance = 100;
@@ -286,7 +286,25 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 		// std::cout << "Distance to Next Node in Map is:\t " << dist_to_node_loc << std::endl;
 		// visualization::DrawCross(closest_path_node_outside.loc, 0.15, 0xffff00, msg);
 		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xffff00, msg);
-		if (dist_to_node_loc > circle_rad_min) break;
+		// if (dist_to_node_loc > circle_rad_min) break;
+
+		// Find first node outside circle radius
+		if (dist_to_node_loc > circle_rad_min) {
+			// If there is a clear path between the robot and the goal, choose this goal node
+			// If not, step back and keep checking
+			for(int i = j; i > starting_point_index; i--){
+				Vector2f goal_loc = nav_map_[global_path_[i]].loc;
+				line2f car_to_goal(robot_loc, goal_loc);
+				visualization::DrawLine(robot_loc, goal_loc, 0x000000, msg);
+				bool intersection = map_.Intersects(robot_loc, goal_loc);
+				if (intersection){
+					cout << "Obstruction in the way of this point, stepping back!" << endl;
+				}else{
+					closest_path_node_outside = nav_map_[global_path_[i]];
+					return closest_path_node_outside;
+				}
+			}
+		}
 	}
 
 	// Draw Closest Point outside circle
