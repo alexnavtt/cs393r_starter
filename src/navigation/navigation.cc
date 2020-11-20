@@ -289,7 +289,7 @@ geometry_msgs::Twist Navigation::AckermannIK(float curvature, float velocity){
 
 void Navigation::checkReached(){
 	// If we have reached our goal we can stop (not relevant for dynamic goal)
-	float dist_to_goal = (robot_loc_-local_goal_vector_).norm();
+	float dist_to_goal = local_goal_vector_.norm();
 	float current_speed = robot_vel_.norm();
 	if (current_speed > 2.0) return; // disregards initial infinite velocity
 	float stopping_dist = 0.1 - 0.5*current_speed*current_speed/min_accel_;
