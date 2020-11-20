@@ -353,7 +353,7 @@ void Navigation::Run() {
 		checkReached();
 
 		if (global_planner_.needsReplan() or isRobotStuck()){
-			global_planner_.replan();
+			global_planner_.replan(robot_loc_);
 			cout << "Replan!" << endl;
 		}
 

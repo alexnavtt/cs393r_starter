@@ -56,7 +56,7 @@ public:
 	Node getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg);
 	// Check if we need to replan
 	bool needsReplan();
-	void replan();
+	void replan(Eigen::Vector2f robot_loc);
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
