@@ -244,7 +244,7 @@ float GlobalPlanner::getHeuristic(const Vector2f &goal_loc, const Vector2f &node
 // Post: will actually need to pass in the node location to the drive along global path function
 Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg){
 	// Draw Circle around Robot's Location that will Intersect with Global Path
-	float circle_rad_min = 3.0;
+	float circle_rad_min = 2.0;
 	visualization::DrawArc(robot_loc,circle_rad_min,0.0,2*M_PI,0x000000, msg);
 
 	// Find the closest node to the robot

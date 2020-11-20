@@ -120,7 +120,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		obstacle_memory_(1)
 {
 	global_planner_.setResolution(0.25);
-	setLocalPlannerWeights(5,2,2); //fpl, clearance, dtg
+	setLocalPlannerWeights(2,5,1); //fpl, clearance, dtg
 
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -350,7 +350,7 @@ void Navigation::Run() {
 		}
 
 		// Visualization/Diagnostics
-		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
+		local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
 		// cout << nav_complete_ << endl;
 	}

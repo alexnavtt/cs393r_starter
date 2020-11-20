@@ -114,7 +114,7 @@ void LocalPlanner::trimPathLength(PathOption &path, Vector2f goal)
 	// If trimmed path length is less than free path length, substitute in the trimmed value
 	if (abs(angle/path.curvature) < path.free_path_length)
 	{
-		path.free_path_length = abs(angle/path.curvature);
+		path.free_path_length = std::min(abs(angle/path.curvature), 5.0f);
 		path.obstruction = P_center + 1/path.curvature * (goal - P_center)/(goal - P_center).norm();
 	} 
 
