@@ -272,14 +272,14 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 
 	// Check if the closest node is outside circle radius
 	if (min_distance > circle_rad_min){
-		Node closest_path_node_outside = closest_path_node;
-
+		closest_path_node.neighbors.clear();
+		unreachable_locs_.push_back(closest_path_node.loc);
 		need_replan_ = true;
 
 		// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
 		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
 		// std::cout << "min_distance is:\t " << min_distance << std::endl;
-		return closest_path_node_outside;
+		return closest_path_node;
 	}
 
 	// Extract the first node after the closest node that is outside the circle
@@ -385,13 +385,13 @@ bool GlobalPlanner::needsReplan(){return need_replan_;}
 
 void GlobalPlanner::replan(){
 	// Remove the first unvisited node from future consideration
-	for (const string id : global_path_){
-		if (not nav_map_[id].visited){
-			nav_map_[id].neighbors.clear();
-			unreachable_locs_.push_back(nav_map_[id].loc);
-			break;
-		}
-	}
+	// for (const string id : global_path_){
+	// 	if (not nav_map_[id].visited){
+	// 		nav_map_[id].neighbors.clear();
+	// 		unreachable_locs_.push_back(nav_map_[id].loc);
+	// 		break;
+	// 	}
+	// }
 
 	getGlobalPath(nav_goal_);
 }
