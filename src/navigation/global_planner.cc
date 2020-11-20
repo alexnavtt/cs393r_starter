@@ -384,4 +384,10 @@ void GlobalPlanner::replan(Vector2f robot_loc, Vector2f failed_target_loc){
 	// nav_map_[failed_target_id].neighbors.clear();
 
 	getGlobalPath(nav_goal_);
+
+	cout << "replanning and avoiding nodes at:" << endl;
+	for (auto &l : failed_locs_){
+		cout << "(" << l.x() << ", " << l.y() << ")" << endl;
+	}
+	cout << endl;
 }
