@@ -319,7 +319,7 @@ void Navigation::Run() {
 		}
 		// local_goal_vector_ = Vector2f(4,0); //carrot on a stick 4m ahead, will eventually be a fxn along global path
 		// time_prev_ = ros::Time::now();
-		setLocalPlannerWeights(0,1,10); //fpl, clearance, dtg
+		setLocalPlannerWeights(2,1,8); //fpl, clearance, dtg
 	}
 
 	if (nav_complete_){
@@ -330,13 +330,12 @@ void Navigation::Run() {
 		// Extract the next node to aim for by the local planner
 		Node target_node = global_planner_.getClosestPathNode(robot_loc_, global_viz_msg_);
 		local_goal_vector_ = Map2BaseLink(target_node.loc);
-		cout << "local goal:   x= " << local_goal_vector_.x() << 
-												", y= " << local_goal_vector_.y() << endl;
 		
 
 		// Find the greedy local path to this point
 		PathOption BestPath = local_planner_.getGreedyPath(local_goal_vector_, BaseLinkObstacleList_);
 		moveAlongPath(BestPath);
+		checkReached();
 
 		// Visualization/Diagnostics
 		local_planner_.printPathDetails(BestPath, local_goal_vector_);

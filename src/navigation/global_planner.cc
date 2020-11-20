@@ -265,6 +265,8 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 	// Check if the closest node is outside circle radius
 	if (min_distance > circle_rad_min){
 		Node closest_path_node_outside = closest_path_node;
+		// TODO: Replan global path
+		
 		// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
 		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
 		// std::cout << "min_distance is:\t " << min_distance << std::endl;
