@@ -64,12 +64,6 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	const line2f edge(node.loc, neighbor_loc);
 	auto cushion_lines = getCushionLines(edge, 0.25);
 
-	// Check if node is withing range of an unreachable location
-	for (const Vector2f &bad_loc : unreachable_locs_){
-		if ( (bad_loc - neighbor_loc).norm() < 10*map_resolution_)
-			return false;
-	}
-
 	// Check for collisions
 	for (const line2f map_line : map_.lines)
     {
@@ -273,7 +267,6 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 	// Check if the closest node is outside circle radius
 	if (min_distance > circle_rad_min){
 		closest_path_node.neighbors.clear();
-		unreachable_locs_.push_back(closest_path_node.loc);
 		need_replan_ = true;
 
 		// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
@@ -383,9 +376,26 @@ void GlobalPlanner::plotNodeNeighbors(const Node &node, amrl_msgs::Visualization
 
 bool GlobalPlanner::needsReplan(){return need_replan_;}
 
-void GlobalPlanner::replan(Vector2f robot_loc, Vector2f bad_loc){
-	// Remove the first unvisited node from future consideration
-	unreachable_locs_.push_back(bad_loc);
-	initializeMap(robot_loc);
+void GlobalPlanner::replan(Vector2f robot_loc){
+	// Find the last visited node
+	for (const string &id : global_path_){
+		if (not nav_map_[id].visited){
+			nav_map_[nav_map_[id].parent].key = "START";
+			nav_map_["START"] = nav_map_[nav_map_[id].parent];
+			break;
+		}
+	}
+
+	// Unvisit all nodes
+	for (auto it = nav_map_.begin(); it != nav_map_.end(); it++){
+		it->second.visited = false;
+	}
+
+	// Clear the global path and start fresh from the current node
+	global_path_.clear();
+	frontier_.Clear();
+	frontier_.Push("START", 0.0);
+	global_path_.push_back("START");
+
 	getGlobalPath(nav_goal_);
 }

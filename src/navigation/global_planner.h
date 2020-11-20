@@ -56,7 +56,7 @@ public:
 	Node getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg);
 	// Check if we need to replan
 	bool needsReplan();
-	void replan(Eigen::Vector2f robot_loc, Eigen::Vector2f bad_loc);
+	void replan(Eigen::Vector2f robot_loc);
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
@@ -83,8 +83,6 @@ private:
 	Eigen::Vector2f nav_goal_;
 	// Global path variable
 	std::vector<std::string> global_path_;
-	// Recollection of unreachable locations
-	std::vector<Eigen::Vector2f> unreachable_locs_; 
 	// Variable checking if we need to replan
 	bool need_replan_ = false;
 };
