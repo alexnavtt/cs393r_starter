@@ -96,6 +96,7 @@ void LocalPlanner::createPossiblePaths(int num)
 											 0,			// free path length
 											 0,			// distance to goal
 											 0,			// cost
+											 {0,0},		// free path length end
 											 {0,0},		// obstruction location
 											 {0,0},		// closest point location
 											 {0,0}});	// end point of the movement
@@ -116,6 +117,14 @@ void LocalPlanner::trimPathLength(PathOption &path, Vector2f goal)
 		path.free_path_length = abs(angle/path.curvature);
 		path.obstruction = P_center + 1/path.curvature * (goal - P_center)/(goal - P_center).norm();
 	} 
+
+	// Solve for fpl_end
+	Vector2f fpl_end;
+	const float radius = 1/path.curvature;
+	const float theta = path.free_path_length/(radius);
+	fpl_end.x() = radius*sin(theta);
+	fpl_end.y() = radius*(1-(cos(theta)));
+	path.fpl_end = fpl_end;
 }
 
 // Calculate free path length for a given path
@@ -260,7 +269,8 @@ PathOption LocalPlanner::getGreedyPath(Vector2f goal_loc, const std::list<Obstac
 		float clearance_padded = path.clearance - (car_width_/2+padding_*2);
 		if (clearance_padded < 0) clearance_padded = 1e-5;
 
-		path.distance_to_goal = (path.obstruction - goal_loc).norm(); // approximately
+		// Solve for distance to goal
+		path.distance_to_goal = (path.fpl_end - goal_loc).norm();
 
 		max_free_path_length = std::max(path.free_path_length, max_free_path_length);
 		max_clearance_padded = std::max(clearance_padded, max_clearance_padded);
@@ -320,6 +330,9 @@ void LocalPlanner::plotPathDetails(PathOption path, Vector2f goal_loc, amrl_msgs
 	// Place red cross at goal position
 	visualization::DrawCross(goal_loc, 0.5, 0xff0000, msg);
 
+	// Place blue cross at end of fpl
+	visualization::DrawCross(path.fpl_end, 0.5, 0x0000ff, msg);
+
 	// Draw Closest Point for Clearance
 	visualization::DrawCross(path.closest_point, 0.25, 0xf07807, msg);
 }
@@ -330,6 +343,7 @@ void LocalPlanner::printPathDetails(PathOption path, Vector2f goal_loc){
 			  << "free path length: " << path.free_path_length << std::endl
 			  << "distance_to_goal: " << path.distance_to_goal << std::endl
 			  << "cost:             " << path.cost << std::endl;
+	printVector(path.fpl_end, "end of fpl: ");
 	printVector(path.obstruction, "obstruction: ");
 	printVector(path.closest_point, "closest point: ");
 	printVector(path.end_point, "end point: ");

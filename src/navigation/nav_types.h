@@ -9,6 +9,7 @@ struct PathOption {
   float free_path_length;
   float distance_to_goal;
   float cost;
+  Eigen::Vector2f fpl_end;
   Eigen::Vector2f obstruction;
   Eigen::Vector2f closest_point;
   Eigen::Vector2f end_point; 
