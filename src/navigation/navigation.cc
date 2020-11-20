@@ -352,6 +352,11 @@ void Navigation::Run() {
 		moveAlongPath(BestPath);
 		checkReached();
 
+		if (global_planner_.needsReplan() or isRobotStuck()){
+			global_planner_.replan();
+			cout << "Replan!" << endl;
+		}
+
 		// Visualization/Diagnostics
 		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
