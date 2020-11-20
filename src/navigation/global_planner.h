@@ -54,6 +54,9 @@ public:
 	float getHeuristic(const Eigen::Vector2f &goal_loc, const Eigen::Vector2f &node_loc);
 	// Finds closest global path node to rpobot location that it ouside of circle
 	Node getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg);
+	// Check if we need to replan
+	bool needsReplan();
+	void replan();
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
@@ -82,6 +85,8 @@ private:
 	std::vector<std::string> global_path_;
 	// Recollection of unreachable locations
 	std::vector<Eigen::Vector2f> unreachable_locs_; 
+	// Variable checking if we need to replan
+	bool need_replan_ = false;
 };
 
 #endif

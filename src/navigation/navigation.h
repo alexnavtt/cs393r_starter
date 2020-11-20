@@ -83,6 +83,10 @@ class Navigation {
   void driveCar(float curvature, float velocity);
   // Check to see if the nav goal has been reached
   void checkReached();
+  // Check if the robot is moving
+  void checkStalled();
+  // Check if the robot is stuck
+  bool isRobotStuck();
 
   /* -------- Helper Functions ---------- */
   Eigen::Vector2f BaseLink2Odom(Eigen::Vector2f p);
@@ -131,6 +135,9 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle
   float nav_goal_angle_;
+  // Check if the car is moving
+  bool stalled_ = false;
+  ros::Time stall_time_;
 
   /* --------- Obstacles ---------- */
 

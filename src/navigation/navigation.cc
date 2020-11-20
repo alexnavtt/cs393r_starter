@@ -300,6 +300,21 @@ void Navigation::checkReached(){
 	}
 }
 
+void Navigation::checkStalled(){
+	if (not stalled_ and drive_msg_.velocity < 0.01){
+		stalled_ = true;
+		stall_time_ = ros::Time::now();
+	}
+}
+
+bool Navigation::isRobotStuck(){
+	ros::Time now = ros::Time::now();
+	if (stalled_ and (now - stall_time_).toSec() > 5){
+		return true;
+	}
+	return false;
+}
+
 // Frame Transformations
 Eigen::Vector2f Navigation::BaseLink2Odom(Eigen::Vector2f p) {return odom_loc_ + R_odom2base_*p;}
 Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base_.transpose()*(p - odom_loc_);}
