@@ -345,14 +345,14 @@ void Navigation::Run() {
 
 		checkStalled();
 		if (global_planner_.needsReplan() or isRobotStuck()){
-			global_planner_.replan(robot_loc_);
+			global_planner_.replan(robot_loc_, target_node.key);
 			cout << "Replan!" << endl;
+			stalled_ = false;
 		}
 
 		// Visualization/Diagnostics
 		local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
-		// cout << nav_complete_ << endl;
 	}
 
 	// Visualization
