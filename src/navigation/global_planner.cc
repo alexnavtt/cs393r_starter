@@ -10,6 +10,12 @@ using geometry::line2f;
 
 //========================= GENERAL FUNCTIONS =========================//
 
+GlobalPlanner::GlobalPlanner(){
+	// Initialize blueprint map
+	map_.Load("maps/GDC1.txt");
+	cout << "Initialized GDC1 map with " << map_.lines.size() << " lines." << endl;
+}
+
 void GlobalPlanner::setResolution(float resolution){
 	map_resolution_ = resolution;
 	cout << "Resolution set to: " << map_resolution_ << endl;
@@ -62,7 +68,7 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	Vector2f offset(map_resolution_ * x_offset, map_resolution_ * y_offset);
 	Vector2f neighbor_loc = node.loc + offset;
 	const line2f edge(node.loc, neighbor_loc);
-	auto cushion_lines = getCushionLines(edge, 0.5);
+	auto cushion_lines = getCushionLines(edge, 0.25);
 
 	// Check for collisions
 	for (const line2f map_line : map_.lines)
@@ -154,10 +160,6 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 
 	nav_map_[start_node.key] = start_node;
 	frontier_.Push("START", 0.0);
-
-	// Initialize blueprint map
-	map_.Load("maps/GDC1.txt");
-	cout << "Initialized GDC1 map with " << map_.lines.size() << " lines." << endl;
 }
 
 
@@ -251,74 +253,84 @@ float GlobalPlanner::getHeuristic(const Vector2f &goal_loc, const Vector2f &node
 // In-work: Connor 
 // Post: will actually need to pass in the node location to the drive along global path function
 Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg){
+	// Initialize output
+	Node target_node;
+	int target_index = 0;
+	Node closest_node;
+	int closest_index = 0;
+
 	// Draw Circle around Robot's Location that will Intersect with Global Path
 	float circle_rad_min = 2.0;
 	visualization::DrawArc(robot_loc,circle_rad_min,0.0,2*M_PI,0x909090, msg);
 
 	// Find the closest node to the robot
 	float min_distance = 100;
-	Node closest_path_node;
-	int starting_point_index = 0;
-	float dist_to_node_loc;
 	for (size_t i = 0; i < global_path_.size(); i++)
 	{
 		Vector2f node_loc = nav_map_[global_path_[i]].loc;
-		dist_to_node_loc = (robot_loc-node_loc).norm();
+		float dist_to_node_loc = (robot_loc-node_loc).norm();
+
 		if (dist_to_node_loc < min_distance){
 			min_distance = dist_to_node_loc;
-			closest_path_node = nav_map_[global_path_[i]];
-			starting_point_index = i;
+			closest_node = nav_map_[global_path_[i]];
+			closest_index = i;
 		}
 	}
-	closest_path_node.visited = true;
+	closest_node.visited = true;
 
 	// Check if the closest node is outside circle radius
-	need_replan_ = false;
-	if (min_distance > circle_rad_min){
-		need_replan_ = true;
-
-		// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
-		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
-		// std::cout << "min_distance is:\t " << min_distance << std::endl;
-		return closest_path_node;
-	}
+	need_replan_ = (min_distance > circle_rad_min ? true : false);
+	if (need_replan_) {return closest_node;}
 
 	// Extract the first node after the closest node that is outside the circle
-	dist_to_node_loc = min_distance;
-	Node closest_path_node_outside;
-	for(size_t j = starting_point_index; j < global_path_.size(); j++)
+	for(size_t i = closest_index; i < global_path_.size(); i++)
 	{
-		closest_path_node_outside = nav_map_[global_path_[j]];
-		dist_to_node_loc = (robot_loc - closest_path_node_outside.loc).norm();
+		target_node = nav_map_[global_path_[i]];
+		float dist_to_node_loc = (robot_loc - target_node.loc).norm();
 
-		// std::cout << "Distance to Next Node in Map is:\t " << dist_to_node_loc << std::endl;
-		// visualization::DrawCross(closest_path_node_outside.loc, 0.15, 0xffff00, msg);
-		// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xffff00, msg);
-		// if (dist_to_node_loc > circle_rad_min) break;
-
-		// Find first node outside circle radius
 		if (dist_to_node_loc > circle_rad_min) {
-			// If there is a clear path between the robot and the goal, choose this goal node
-			// If not, step back and keep checking
-			for(int i = j; i > starting_point_index; i--){
-				Vector2f goal_loc = nav_map_[global_path_[i]].loc;
-				line2f car_to_goal(robot_loc, goal_loc);
-				visualization::DrawLine(robot_loc, goal_loc, 0x000000, msg);
-				bool intersection = map_.Intersects(robot_loc, goal_loc);
-				if (intersection){
-					cout << "Obstruction in the way of this point, stepping back!" << endl;
-				}else{
-					closest_path_node_outside = nav_map_[global_path_[i]];
-					return closest_path_node_outside;
-				}
-			}
+			target_index = i;
+			break;
 		}
 	}
 
-	// Draw Closest Point outside circle
-	// visualization::DrawCross(closest_path_node_outside.loc, 0.25, 0xff9900, msg);
-	// visualization::DrawLine(robot_loc, closest_path_node_outside.loc, 0xff9900, msg);
-	return closest_path_node_outside;
+	// If there is a clear path between the robot and the goal then
+	// choose this goal node. If not, step back and keep checking
+	for(int i = target_index; i > closest_index; i--){
+		Vector2f target_loc = nav_map_[global_path_[i]].loc;
+		line2f car_to_goal(robot_loc, target_loc);
+
+		visualization::DrawLine(robot_loc, target_loc, 0x000000, msg);
+
+		bool intersection = map_.Intersects(robot_loc, target_loc);
+		if (!intersection){
+			// cout << "Obstruction in the way of this point, stepping back!" << endl;
+		// }else{
+			target_node = nav_map_[global_path_[i]];
+			return target_node;
+		}
+
+		if (i == closest_index + 1) {need_replan_ = true;}
+	}
+
+	return target_node;
+}
+
+bool GlobalPlanner::needsReplan(){return need_replan_;}
+
+void GlobalPlanner::replan(Vector2f robot_loc, Vector2f failed_target_loc){
+	
+	if ( (robot_loc - failed_target_loc).norm() > map_resolution_)
+		failed_locs_.push_back(failed_target_loc);
+	
+	initializeMap(robot_loc);
+	getGlobalPath(nav_goal_);
+
+	cout << "replanning and avoiding nodes at:" << endl;
+	for (auto &l : failed_locs_){
+		cout << "(" << l.x() << ", " << l.y() << ")" << endl;
+	}
+	cout << endl;
 }
 
 
@@ -369,44 +381,8 @@ void GlobalPlanner::plotNodeNeighbors(const Node &node, amrl_msgs::Visualization
 	}
 }
 
-bool GlobalPlanner::needsReplan(){return need_replan_;}
-
-void GlobalPlanner::replan(Vector2f robot_loc, Vector2f failed_target_loc){
-	// Find the last visited node
-	// for (const string &id : global_path_){
-	// 	if (not nav_map_[id].visited){
-	// 		nav_map_[nav_map_[id].parent].key = "START";
-	// 		nav_map_["START"] = nav_map_[nav_map_[id].parent];
-	// 		break;
-	// 	}
-	// }
-	failed_locs_.push_back(failed_target_loc);
-	initializeMap(robot_loc);
-
-	// Unvisit all nodes
-	// for (auto it = nav_map_.begin(); it != nav_map_.end(); it++){
-	// 	it->second.visited = false;
-	// }
-	// nav_map_["START"].visited = true;
-
-	// Clear the global path and start fresh from the current node
-	// global_path_.clear();
-	// frontier_.Clear();
-	// frontier_.Push("START", 0.0);
-	// global_path_.push_back("START");
-
-	// Invalidate the the node we were trying to get to when navigation failed (and it's neighbors)
-	// for (Neighbor &n : nav_map_[failed_target_id].neighbors){
-	// 	if (nav_map_.count(n.key))
-	// 		nav_map_[n.key].neighbors.clear();
-	// }
-	// nav_map_[failed_target_id].neighbors.clear();
-
-	getGlobalPath(nav_goal_);
-
-	cout << "replanning and avoiding nodes at:" << endl;
-	for (auto &l : failed_locs_){
-		cout << "(" << l.x() << ", " << l.y() << ")" << endl;
+void GlobalPlanner::plotInvalidNodes(amrl_msgs::VisualizationMsg &msg){
+	for (const Vector2f &loc : failed_locs_){
+		visualization::DrawCross(loc, 0.5, 0x000000, msg);
 	}
-	cout << endl;
 }

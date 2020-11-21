@@ -69,7 +69,7 @@ LocalPlanner::LocalPlanner() :
 	padding_(0.1),
 	wheelbase_(0.324),
 	observation_delay_(0.0),
-	actuation_delay_(0.0),
+	actuation_delay_(0.2),
 	vision_angle_(3*M_PI/2),  
 	vision_range_(10), 		// based on sim, grid squares are 2m
 	curvature_max_(1/1.0),	// can take turns as tight as 1m

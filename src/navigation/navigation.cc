@@ -117,7 +117,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		nav_complete_(true),
 		nav_goal_loc_(0, 0),
 		// nav_goal_angle_(0),
-		obstacle_memory_(1)
+		obstacle_memory_(0)
 {
 	global_planner_.setResolution(0.25);
 	setLocalPlannerWeights(3,5,1); //fpl, clearance, dtg
@@ -202,16 +202,28 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 		ObstacleList_.push_back(Obstacle {BaseLink2Odom(obs_loc), time});
 		BaseLinkObstacleList_.push_back(Obstacle {obs_loc, time});
 	}
+
+	// False Obstacles in the hallway
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-27.5, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-27.2, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-26.9, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-26.6, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-26.3, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-26.0, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-25.7, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-25.4, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-25.1, 13.1}), time});
+	// BaseLinkObstacleList_.push_back(Obstacle{Map2BaseLink({-25.0, 13.1}), time});
 }
 
 void Navigation::showObstacles()
 {
 	int i = 0;
 	int cutoff_count = ObstacleList_.size()/1000;
-	for (const auto &obs : ObstacleList_)
+	for (const auto &obs : BaseLinkObstacleList_)
 	{
 		if (i != cutoff_count) {i++; continue;} // ensure that no more than 1000 obstacles are displayed
-		visualization::DrawCross(Odom2BaseLink(obs.loc), 0.05, 0x000000, local_viz_msg_);
+		visualization::DrawCross(obs.loc, 0.05, 0x000000, local_viz_msg_);
 		i = 0;
 	}
 }
@@ -238,7 +250,7 @@ float Navigation::limitVelocity(float vel) {
 
 void Navigation::moveAlongPath(PathOption path){
 	float current_speed = robot_vel_.norm();
-	float decel_dist = 0.1+-0.5*current_speed*current_speed/min_accel_;
+	float decel_dist = 0.3+-0.5*current_speed*current_speed/min_accel_;
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
 	// if (navigation_success_) cmd_vel = 0;
 	driveCar(path.curvature, limitVelocity(cmd_vel));
@@ -289,7 +301,7 @@ geometry_msgs::Twist Navigation::AckermannIK(float curvature, float velocity){
 
 void Navigation::checkReached(){
 	// If we have reached our goal we can stop (not relevant for dynamic goal)
-	float dist_to_goal = local_goal_vector_.norm();
+	float dist_to_goal = (robot_loc_ - nav_goal_loc_).norm();
 	float current_speed = robot_vel_.norm();
 	if (current_speed > 2.0) return; // disregards initial infinite velocity
 	float stopping_dist = 0.1 - 0.5*current_speed*current_speed/min_accel_;
@@ -311,7 +323,7 @@ void Navigation::checkStalled(){
 
 bool Navigation::isRobotStuck(){
 	ros::Time now = ros::Time::now();
-	if (stalled_ and (now - stall_time_).toSec() > 5){
+	if (not nav_complete_ and stalled_ and (now - stall_time_).toSec() > 5){
 		return true;
 	}
 	return false;
@@ -348,6 +360,7 @@ void Navigation::Run() {
 			global_planner_.replan(robot_loc_, target_node.loc);
 			cout << "Replan!" << endl;
 			stalled_ = false;
+			ros::Duration(0.5).sleep();
 		}
 
 		// Visualization/Diagnostics
@@ -358,6 +371,8 @@ void Navigation::Run() {
 	// Visualization
 	global_planner_.plotGlobalPath(global_viz_msg_);
 	global_planner_.plotFrontier(global_viz_msg_);
+	global_planner_.plotInvalidNodes(global_viz_msg_);
+	// showObstacles();
 
 	viz_pub_.publish(local_viz_msg_);
 	viz_pub_.publish(global_viz_msg_);

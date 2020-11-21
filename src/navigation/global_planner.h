@@ -36,7 +36,7 @@ class GlobalPlanner{
 
 public:
 	// Default Constructor
-	GlobalPlanner(){}
+	GlobalPlanner();
 	// Set the map resolution
 	void setResolution(float resolution);
 	// Initialize the navigation map at the start point and update the planner resolution
@@ -62,6 +62,7 @@ public:
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
 	void plotFrontier(amrl_msgs::VisualizationMsg &msg);
 	void plotNodeNeighbors(const Node &node, amrl_msgs::VisualizationMsg &msg);
+	void plotInvalidNodes(amrl_msgs::VisualizationMsg &msg);
 	void visualizeMap();
 
 private:
