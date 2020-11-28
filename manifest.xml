@@ -18,6 +18,7 @@
   <depend package="rosbag"/>
   <depend package="tf"/>
   <depend package="ut_automata"/>
+  <depend package="tf2_ros"/>
   <dpend package="amrl_msgs"/>
 
 </package>

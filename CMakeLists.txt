@@ -28,7 +28,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 SET(libs roslib roscpp rosbag glog gflags amrl-shared-lib boost_system lua5.1
-    pthread)
+    pthread tf2_ros)
 
 ADD_LIBRARY(shared_library
             src/visualization/visualization.cc
@@ -61,6 +61,10 @@ TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 ROSBUILD_ADD_EXECUTABLE(measure_latency
                         src/navigation/measureLatency.cpp)
 TARGET_LINK_LIBRARIES(measure_latency shared_library ${libs})
+
+ROSBUILD_ADD_EXECUTABLE(odometry_broadcaster
+                        src/tf/odometry_broadcaster.cpp)
+TARGET_LINK_LIBRARIES(odometry_broadcaster shared_library ${libs})
 
 ADD_EXECUTABLE(pq_tutorial
                src/navigation/pq_tutorial.cc)
