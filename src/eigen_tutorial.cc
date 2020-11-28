@@ -28,9 +28,19 @@ void DemoBasics() {
        << "v1.y = " << v1.y() << endl;
 
   // Mark: norm test
-  cout << "Get norm of a vector:" <<endl;
+  cout << "Get norm of a vector:" << endl;
   float v1norm = v1.norm();
   cout << v1norm << endl;
+  // L1 norm
+  cout << "Get L1 norm of a vector:" << endl;
+  float v1normL1 = (-1*v1).lpNorm<1>();
+  cout << v1normL1 << endl;
+
+  Vector2f v_abs(-3.0, 2.0);
+  v_abs = v_abs.cwiseAbs();
+  cout << "Get absolute value of vector:" << endl
+       << "v_abs.x = " << v_abs.x() << endl
+       << "v_abs.y = " << v_abs.y() << endl;
 
   // Mark: can you just subtract 2 vectors?
   Vector2f vsub(2.0, 1.0);

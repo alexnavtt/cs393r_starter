@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
   ros::Subscriber goto_sub =
       n.subscribe("/move_base_simple/goal", 1, &GoToCallback);
 
-  navigation_->setLocalPlannerWeights(5,2,1);
+  navigation_->setLocalPlannerWeights(0,0,10);
 
   RateLoop loop(20.0);
   while (run_ && ros::ok()) {

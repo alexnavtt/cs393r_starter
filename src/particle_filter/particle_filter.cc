@@ -35,7 +35,7 @@
 #include "config_reader/config_reader.h"
 #include "particle_filter.h"
 
-#include "vector_map/vector_map.h"
+// #include "vector_map/vector_map.h"
 
 using math_util::DegToRad;
 using math_util::RadToDeg;
