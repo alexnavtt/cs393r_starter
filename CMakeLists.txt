@@ -55,7 +55,8 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation.cc
                         src/navigation/local_planner.cc
                         src/navigation/global_planner.cc
-                        src/navigation/latency_compensator.cc)
+                        src/navigation/latency_compensator.cc
+                        src/navigation/human.cc)
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(measure_latency

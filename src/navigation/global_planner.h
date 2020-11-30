@@ -14,6 +14,7 @@
 #include "visualization/visualization.h"
 #include "vector_map/vector_map.h"
 #include "navigation/simple_queue.h"
+#include "human.h"
 
 struct Neighbor{
   Eigen::Vector2i node_index;
@@ -88,6 +89,8 @@ private:
 	bool need_replan_ = false;
 	// Locations of all nodes that caused navigation to fail
 	std::vector<Eigen::Vector2f> failed_locs_;
+	// Vector of all known humans
+	std::vector<human::Human> population_;
 };
 
 #endif
