@@ -150,6 +150,8 @@ class Navigation {
   /* ------- Human Population ----- */
   human::Human Peter;
   human::Human Susan;
+  human::Human Joydeep;
+  human::Human Tongrui;
   human::Human Andrew;
 
   // Remove from memory any old or deprecated obstacles - called by ObservePointCloud

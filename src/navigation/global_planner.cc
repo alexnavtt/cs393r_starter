@@ -122,12 +122,13 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 	int dx = (neighbor_index % 3 == 2) - (neighbor_index % 3 == 0);
 	int dy = (neighbor_index < 3) - (neighbor_index > 5);
 
-	new_node.loc 	   = old_node.loc + map_resolution_ * Vector2f(dx, dy);
-	new_node.index 	   = old_node.index + Vector2i(dx, dy);
-	new_node.cost 	   = old_node.cost + edgeCost(old_node, new_node);
-	new_node.parent    = old_node.key;
-	new_node.key 	   = getNewID(new_node.index.x(), new_node.index.y());
-	new_node.neighbors = getNeighbors(new_node);
+	new_node.loc         = old_node.loc + map_resolution_ * Vector2f(dx, dy);
+	new_node.index       = old_node.index + Vector2i(dx, dy);
+	new_node.cost        = old_node.cost + edgeCost(old_node, new_node);
+	new_node.social_cost = getSocialCost(new_node);
+	new_node.parent      = old_node.key;
+	new_node.key         = getNewID(new_node.index.x(), new_node.index.y());
+	new_node.neighbors   = getNeighbors(new_node);
 
 	for (const auto &bad_loc : failed_locs_){
 		if ((new_node.loc - bad_loc).norm() < map_resolution_*3){
@@ -154,6 +155,7 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 	start_node.loc 	  = loc;
 	start_node.index  = Eigen::Vector2i(xi, yi);
 	start_node.cost   = 0;
+	start_node.social_cost = 0;
 	start_node.parent = "START";
 	start_node.key    = "START";
 	start_node.neighbors = getNeighbors(start_node);
@@ -175,6 +177,26 @@ void GlobalPlanner::clearPopulation(){
 
 
 //========================= PATH PLANNING ============================//
+
+float GlobalPlanner::getSocialCost(Node &new_node){
+	float safety_cost = 0;
+	float visibility_cost = 0;
+	float max_social_cost = 0;
+
+	for(auto &H : population_){
+		safety_cost = H->safetyCost(new_node.loc);
+		visibility_cost = H->visibilityCost(new_node.loc);		
+		float social_cost = std::max(safety_cost, visibility_cost);
+		if (social_cost > max_social_cost){
+			max_social_cost = social_cost;
+		}
+	}
+	// if (max_social_cost > 0.5){
+	// 	cout << max_social_cost << endl;
+	// 	cout << "X: " << new_node.loc.x() << ", Y: " << new_node.loc.y() << endl;
+	// }
+	return 20*max_social_cost;
+}
 
 void GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 	nav_goal_ = nav_goal_loc;
@@ -205,12 +227,14 @@ void GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 			if (unexplored){
 				// Make new Node out of neighbor
 				Node new_node = newNode(current_node, next_neighbor.neighbor_index);
+				neighbor_cost += new_node.social_cost;
 				float heuristic = 1.0*getHeuristic(nav_goal_loc, new_node.loc);
 				frontier_.Push(neighbor_id, neighbor_cost+heuristic);
 			
 			}else if (neighbor_cost < nav_map_[neighbor_id].cost){
 				nav_map_[neighbor_id].cost = neighbor_cost;
 				nav_map_[neighbor_id].parent = current_node.key;
+				neighbor_cost += nav_map_[neighbor_id].social_cost;
 				float heuristic = 1.0*getHeuristic(nav_goal_loc, nav_map_[neighbor_id].loc);
 				frontier_.Push(neighbor_id, neighbor_cost+heuristic);
 

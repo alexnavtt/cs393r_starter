@@ -137,6 +137,14 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	Susan.setAngle(3*M_PI/2);
 	global_planner_.addHuman(&Susan);
 
+	Joydeep.setLoc({-10,16});
+	Joydeep.setAngle(M_PI/2);
+	global_planner_.addHuman(&Joydeep);
+
+	Tongrui.setLoc({-4,21});
+	Tongrui.setAngle(3*M_PI/2);
+	global_planner_.addHuman(&Tongrui);
+
 	Andrew.setLoc({16,8});
 	Andrew.setAngle(M_PI);
 	global_planner_.addHuman(&Andrew);
@@ -369,8 +377,10 @@ void Navigation::Run() {
 	}
 	Andrew.move(dt_);
 
+	// Commented out so the car won't move, not permanent:
+	/*
 	if (nav_complete_){
-		// Do nothing is navigation is not active
+		// Do nothing if navigation is not active
 		ros::Duration(0.01).sleep();
 
 	}else{
@@ -396,6 +406,7 @@ void Navigation::Run() {
 		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
 	}
+	*/
 
 	// Visualization
 	global_planner_.plotGlobalPath(global_viz_msg_);
@@ -403,8 +414,12 @@ void Navigation::Run() {
 	global_planner_.plotInvalidNodes(global_viz_msg_);
 	Andrew.show(global_viz_msg_);
 	Peter.show(global_viz_msg_);
+	Joydeep.show(global_viz_msg_);
+	Tongrui.show(global_viz_msg_);
 	Susan.show(global_viz_msg_);
 
+	Joydeep.visualizeFields(global_viz_msg_);
+	Tongrui.visualizeFields(global_viz_msg_);
 	Andrew.visualizeFields(global_viz_msg_);
 	// showObstacles();
 

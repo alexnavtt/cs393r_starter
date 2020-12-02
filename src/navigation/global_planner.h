@@ -27,6 +27,7 @@ struct Node{
   Eigen::Vector2f loc;                  // Location of node
   Eigen::Vector2i index;                // Index of node
   float cost;                           // Total path cost up to this node (NOTE: not edge cost)
+	float social_cost;										// Cost associated with movement around humans
   std::string parent;                   // Parent of the node on the optimal path                
   std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
   std::string key;                      // Unique identifier
@@ -50,6 +51,8 @@ public:
 	float edgeCost(const Node &node_A,const Node &node_B);
 	// Update valid neighbors and edge costs
 	void visitNode(Node &node);
+	// Get social cost of a particular node
+	float getSocialCost(Node &node);
 	// Get the best sequence of node keys to the nav_goal_ point
 	void getGlobalPath(Eigen::Vector2f nav_goal_loc);
 	// Calculate the relevant Heuristic
