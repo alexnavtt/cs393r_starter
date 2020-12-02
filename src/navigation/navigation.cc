@@ -404,6 +404,8 @@ void Navigation::Run() {
 	Andrew.show(global_viz_msg_);
 	Peter.show(global_viz_msg_);
 	Susan.show(global_viz_msg_);
+
+	Andrew.visualizeFields(global_viz_msg_);
 	// showObstacles();
 
 	viz_pub_.publish(local_viz_msg_);

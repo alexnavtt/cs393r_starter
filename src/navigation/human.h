@@ -32,7 +32,7 @@ public:
 
 	// Set Cost Parameters
 	void setSafetyStdDev(float sigma_x, float sigma_y);
-	void setVisibilityStdDev(float sigma_x, float sigma_y);
+	void setVisibilityStdDev(float sigma_r, float sigma_t);
 	void setHiddenDecay(float k); // in the form cost = 1/(k*x)
 
 	// Cost Methods (Input points are in map frame)
@@ -46,6 +46,7 @@ public:
 
 	// Visualization
 	void show(amrl_msgs::VisualizationMsg &msg);
+	void visualizeFields(amrl_msgs::VisualizationMsg &msg);
 
 private:
 	// Human State
@@ -62,8 +63,8 @@ private:
 	float vision_range_;
 	float safety_x_variance_;
 	float safety_y_variance_;
-	float visibility_x_variance_;
-	float visibility_y_variance_;
+	float visibility_r_variance_;
+	float visibility_t_variance_;
 	float hidden_decay_constant_;
 	bool isVisible(Eigen::Vector2f local_loc);
 

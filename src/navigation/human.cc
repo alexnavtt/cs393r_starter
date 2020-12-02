@@ -22,8 +22,15 @@ namespace human{
 Human::Human() :
 standing_(false),
 FOV_(3*M_PI/4),
-vision_range_(3)
-{}
+vision_range_(3),
+safety_x_variance_(4),
+safety_y_variance_(4),
+visibility_r_variance_(10),
+visibility_t_variance_(2)
+{
+	setLoc({0,0});
+	setAngle(0);
+}
 
 // Getters
 Vector2f Human::getLoc() 		{return loc_;}
@@ -54,9 +61,9 @@ void Human::setSafetyStdDev(float sigma_x, float sigma_y) {
 	safety_y_variance_ = Sq(sigma_y);
 }
 
-void Human::setVisibilityStdDev(float sigma_x, float sigma_y){
-	visibility_x_variance_ = Sq(sigma_x);
-	visibility_y_variance_ = Sq(sigma_y);
+void Human::setVisibilityStdDev(float sigma_r, float sigma_t){
+	visibility_r_variance_ = Sq(sigma_r);
+	visibility_t_variance_ = Sq(sigma_t);
 }
 
 void Human::setHiddenDecay(float k){
@@ -74,10 +81,12 @@ float Human::safetyCost(Eigen::Vector2f robot_loc) {
 
 float Human::visibilityCost(Eigen::Vector2f robot_loc){
 	Eigen::Vector2f local_loc = toLocalFrame(robot_loc);
+	float rSq = (loc_ - robot_loc).squaredNorm();
+	float d_theta = math_util::AngleDiff(atan2(robot_loc.y() - loc_.y(), robot_loc.x() - loc_.x()), angle_);
 	float cost = 0;
 
-	if (isVisible(local_loc)){
-		cost = exp( -Sq( local_loc.x() )/visibility_x_variance_ - Sq( local_loc.y() )/visibility_y_variance_ );
+	if (not isVisible(local_loc)){
+		cost = exp( -rSq/visibility_r_variance_ - Sq(M_PI - abs(d_theta))/visibility_t_variance_ );
 	}
 
 	return cost;
@@ -108,6 +117,29 @@ void Human::show(amrl_msgs::VisualizationMsg &msg){
 	DrawLine(loc_, toMapFrame(FOV_point1), 0x000000, msg);				// Field of view boundary
 	DrawLine(loc_, toMapFrame(FOV_point2), 0x000000, msg);				// Field of view boundary
 }
+
+// Debugging function, should not run with algorithm for effiency
+void Human::visualizeFields(amrl_msgs::VisualizationMsg &msg){
+	for (float dx = -3; dx < 3; dx += 0.3){
+		for (float dy = -3; dy < 3; dy += 0.3){
+			// Find point
+			if(dx*dx + dy*dy > 9) continue;
+			Vector2f p(loc_ + Vector2f(dx, dy));
+
+			// Safety Field
+			float safety_intensity = safetyCost(p);
+			float safe_color = int(safety_intensity*255) + int((1-safety_intensity)*255)*256;
+			DrawCross(p, 0.05, safe_color, msg);
+
+			// Visibility Field
+			if (isVisible(toLocalFrame(p))) continue;
+			float visibility_intensity = visibilityCost(p);
+			float vis_color = 255*pow(16,4) + int(255*(1-visibility_intensity))*pow(16,2) + int(255*(1-visibility_intensity));
+			DrawArc(p, 0.1, 0, 2*M_PI, vis_color, msg);
+		}
+	}
+}
+
 
 
 
