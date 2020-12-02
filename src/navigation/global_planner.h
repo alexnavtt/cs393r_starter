@@ -52,12 +52,18 @@ public:
 	void visitNode(Node &node);
 	// Get the best sequence of node keys to the nav_goal_ point
 	void getGlobalPath(Eigen::Vector2f nav_goal_loc);
+	// Calculate the relevant Heuristic
 	float getHeuristic(const Eigen::Vector2f &goal_loc, const Eigen::Vector2f &node_loc);
 	// Finds closest global path node to rpobot location that it ouside of circle
 	Node getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::VisualizationMsg &msg);
 	// Check if we need to replan
 	bool needsReplan();
+	// Replan while avoiding failed nodes
 	void replan(Eigen::Vector2f robot_loc, Eigen::Vector2f failed_target_loc);
+	// Add a person to the human population
+	void addHuman(human::Human* Bob);
+	// Clear the known population
+	void clearPopulation();
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
@@ -90,7 +96,7 @@ private:
 	// Locations of all nodes that caused navigation to fail
 	std::vector<Eigen::Vector2f> failed_locs_;
 	// Vector of all known humans
-	std::vector<human::Human> population_;
+	std::vector<human::Human*> population_;
 };
 
 #endif

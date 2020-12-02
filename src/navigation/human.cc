@@ -1,6 +1,7 @@
 #include "human.h"
 #include "shared/math/math_util.h"
 #include "visualization/visualization.h"
+#include "shared/math/line2d.h"
 #include <iostream>
 
 using Eigen::Vector2f;
@@ -8,6 +9,7 @@ using std::vector;
 using std::cout;
 using std::endl;
 using math_util::Sq;
+using geometry::line2f;
 using visualization::DrawPoint;
 using visualization::DrawCross;
 using visualization::DrawLine;
@@ -29,14 +31,14 @@ float Human::getAngle()  		{return angle_;}
 Vector2f Human::getVel() 		{return vel_;}
 float Human::getAngularVel()	{return angular_vel_;}
 float Human::getFOV()			{return FOV_;}
-bool Human::isStanding()		{return standing_;}
+bool Human::isStanding()		{return (standing_ or isMoving());}
 bool Human::isMoving()			{return vel_.norm() + abs(angular_vel_) > 0.005;}
 
 
 // Setters
 void Human::setLoc(Vector2f loc) 		{loc_   	  = loc;}
 void Human::setVel(Vector2f vel)		{vel_   	  = vel;}
-void Human::setAngularVec(float omega)	{angular_vel_ = omega;}
+void Human::setAngularVel(float omega)	{angular_vel_ = omega;}
 void Human::setFOV(float phi)			{FOV_ 		  = phi;}
 void Human::setStanding(bool state)		{standing_    = state;}
 void Human::setAngle(float theta) {
@@ -52,7 +54,7 @@ void Human::setSafetyStdDev(float sigma_x, float sigma_y) {
 	safety_y_variance_ = Sq(sigma_y);
 }
 
-void Human::setVisibilitySedDev(float sigma_x, float sigma_y){
+void Human::setVisibilityStdDev(float sigma_x, float sigma_y){
 	visibility_x_variance_ = Sq(sigma_x);
 	visibility_y_variance_ = Sq(sigma_y);
 }
@@ -122,6 +124,28 @@ Vector2f Human::toMapFrame(Vector2f p){
 bool Human::isVisible(Vector2f local_loc){
 	float vision_angle = atan2(local_loc.y(), local_loc.x());
 	return(vision_angle > -FOV_/2 and vision_angle < FOV_/2);
+}
+
+// Check if the robot is hidden from view (robot_loc is in map frame)
+bool Human::isHidden(Vector2f robot_loc, vector_map::VectorMap &map){
+	if (map.Intersects(loc_, robot_loc)) return true;
+	return false;
+}
+
+// Update the human location according to it's velocity
+void Human::move(float dt){
+	if (dt < 0.01) return;
+	setLoc(loc_ + vel_*dt);
+	float new_angle = angle_ + angular_vel_*dt;
+
+	// Keep angle in the range (-pi,pi)
+	if (new_angle >= M_PI){
+		new_angle -= 2*M_PI;
+	}else if(new_angle < -M_PI){
+		new_angle += 2*M_PI;
+	}
+
+	setAngle(new_angle);
 }
 
 

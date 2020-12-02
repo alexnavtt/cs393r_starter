@@ -127,6 +127,19 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
 	global_viz_msg_ = visualization::NewVisualizationMessage("map", "navigation_global");
 	InitRosHeader("base_link", &drive_msg_.header);
+
+	// Set up the humans in the room
+	Peter.setLoc({-14, 8});
+	Peter.setAngle(3*M_PI/4);
+	global_planner_.addHuman(&Peter);
+
+	Susan.setLoc({-24, 18});
+	Susan.setAngle(3*M_PI/2);
+	global_planner_.addHuman(&Susan);
+
+	Andrew.setLoc({16,8});
+	Andrew.setAngle(M_PI);
+	global_planner_.addHuman(&Andrew);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -239,8 +252,8 @@ float Navigation::limitVelocity(float vel) {
 	float current_speed = robot_vel_.norm();
 	if (init_vel_) { current_speed = 0; init_vel_ = false; }
 	ros::Time time_now = ros::Time::now();
-	ros::Duration delta_time = time_now - time_prev_;
-	dt_ = delta_time.toSec();
+	// ros::Duration delta_time = time_now - time_prev_;
+	// dt_ = delta_time.toSec();
 	// Changed to account for 2d speed
 	float new_vel = std::min({vel, 		current_speed + max_accel_ * dt_, max_vel_});
 	float cmd_vel = std::max({new_vel, 	current_speed + min_accel_ * dt_, min_vel_});
@@ -340,9 +353,25 @@ void Navigation::Run() {
 	visualization::ClearVisualizationMsg(local_viz_msg_);
 	visualization::ClearVisualizationMsg(global_viz_msg_);
 
+	// Have Andrew move down the hallway
+	if (Andrew.getLoc().x() < 4 and abs(Andrew.getAngle()) > M_PI/24){
+		Andrew.setVel({0,0});
+		Andrew.setAngularVel(-1);
+	}else if(Andrew.getLoc().x() < 4){
+		Andrew.setVel({1,0});
+		Andrew.setAngularVel(0);
+	}else if(Andrew.getLoc().x() > 15 and abs(Andrew.getAngle()) < 23*M_PI/24){
+		Andrew.setVel({0,0});
+		Andrew.setAngularVel(1);
+	}else if(Andrew.getLoc().x() > 15){
+		Andrew.setVel({-1,0});
+		Andrew.setAngularVel(0);
+	}
+	Andrew.move(dt_);
+
 	if (nav_complete_){
 		// Do nothing is navigation is not active
-		ros::Duration(0.5).sleep();
+		ros::Duration(0.01).sleep();
 
 	}else{
 		// Extract the next node to aim for by the local planner
@@ -372,6 +401,9 @@ void Navigation::Run() {
 	global_planner_.plotGlobalPath(global_viz_msg_);
 	global_planner_.plotFrontier(global_viz_msg_);
 	global_planner_.plotInvalidNodes(global_viz_msg_);
+	Andrew.show(global_viz_msg_);
+	Peter.show(global_viz_msg_);
+	Susan.show(global_viz_msg_);
 	// showObstacles();
 
 	viz_pub_.publish(local_viz_msg_);

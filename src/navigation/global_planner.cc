@@ -14,11 +14,6 @@ GlobalPlanner::GlobalPlanner(){
 	// Initialize blueprint map
 	map_.Load("maps/GDC1.txt");
 	cout << "Initialized GDC1 map with " << map_.lines.size() << " lines." << endl;
-
-	human::Human Bob;
-	Bob.setLoc({-14, 8});
-	Bob.setAngle(3*M_PI/4);
-	population_.push_back(Bob);
 }
 
 void GlobalPlanner::setResolution(float resolution){
@@ -165,6 +160,17 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 
 	nav_map_[start_node.key] = start_node;
 	frontier_.Push("START", 0.0);
+}
+
+
+//====================== HUMAN MANIPULATION ==========================//
+void GlobalPlanner::addHuman(human::Human* Bob){
+	population_.push_back(Bob);
+	// TODO: Check if we need to replan for this new human
+}
+
+void GlobalPlanner::clearPopulation(){
+	population_.clear();
 }
 
 
@@ -354,10 +360,6 @@ void GlobalPlanner::plotGlobalPath(amrl_msgs::VisualizationMsg &msg){
 		Vector2f start_loc = nav_map_[*key].loc;
 		Vector2f end_loc = nav_map_[end_key].loc;
 		visualization::DrawLine(start_loc, end_loc, 0x009c08, msg);
-	}
-
-	for (auto H : population_){
-		H.show(msg);
 	}
 }
 

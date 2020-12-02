@@ -5,6 +5,7 @@
 #include "eigen3/Eigen/Dense"
 
 #include "amrl_msgs/VisualizationMsg.h"
+#include "vector_map/vector_map.h"
 
 namespace human{
 
@@ -25,19 +26,23 @@ public:
 	void setLoc(Eigen::Vector2f human_loc);
 	void setAngle(float theta);
 	void setVel(Eigen::Vector2f human_vel);
-	void setAngularVec(float omega);
+	void setAngularVel(float omega);
 	void setFOV(float phi);
 	void setStanding(bool state);
 
 	// Set Cost Parameters
 	void setSafetyStdDev(float sigma_x, float sigma_y);
-	void setVisibilitySedDev(float sigma_x, float sigma_y);
+	void setVisibilityStdDev(float sigma_x, float sigma_y);
 	void setHiddenDecay(float k); // in the form cost = 1/(k*x)
 
 	// Cost Methods (Input points are in map frame)
 	float safetyCost(Eigen::Vector2f robot_loc);
 	float visibilityCost(Eigen::Vector2f robot_loc);
 	float hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc);
+
+	// Utility
+	bool isHidden(Eigen::Vector2f robot_loc, vector_map::VectorMap &map);
+	void move(float dt);
 
 	// Visualization
 	void show(amrl_msgs::VisualizationMsg &msg);
