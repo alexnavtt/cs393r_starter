@@ -129,25 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 
 	// Set up the humans in the room
-	Peter.setLoc({-14, 8});
-	Peter.setAngle(3*M_PI/4);
-	global_planner_.addHuman(&Peter);
-
-	Susan.setLoc({-24, 18});
-	Susan.setAngle(3*M_PI/2);
-	global_planner_.addHuman(&Susan);
-
-	Joydeep.setLoc({-10,16});
-	Joydeep.setAngle(M_PI/2);
-	global_planner_.addHuman(&Joydeep);
-
-	Tongrui.setLoc({-4,21});
-	Tongrui.setAngle(3*M_PI/2);
-	global_planner_.addHuman(&Tongrui);
-
-	Andrew.setLoc({16,8});
-	Andrew.setAngle(M_PI);
-	global_planner_.addHuman(&Andrew);
+	loadScenario(Scene3);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -350,6 +332,20 @@ bool Navigation::isRobotStuck(){
 	return false;
 }
 
+void Navigation::loadScenario(Scenario S){
+	cout << "Loading Scenario " << S.identifier << ": " << S.description << endl;
+	current_scenario_ = S;
+
+	for (size_t i=0; i < S.population.size(); i++){
+		S.population[i]->setLoc(S.human_locs[i]);
+		S.population[i]->setAngle(S.human_angles[i]);
+
+		if (S.seen[i]){
+			global_planner_.addHuman(S.population[i]);
+		}
+	}
+}
+
 // Frame Transformations
 Eigen::Vector2f Navigation::BaseLink2Odom(Eigen::Vector2f p) {return odom_loc_ + R_odom2base_*p;}
 Eigen::Vector2f Navigation::Odom2BaseLink(Eigen::Vector2f p) {return R_odom2base_.transpose()*(p - odom_loc_);}
@@ -361,21 +357,31 @@ void Navigation::Run() {
 	visualization::ClearVisualizationMsg(local_viz_msg_);
 	visualization::ClearVisualizationMsg(global_viz_msg_);
 
-	// Have Andrew move down the hallway
-	if (Andrew.getLoc().x() < 4 and abs(Andrew.getAngle()) > M_PI/24){
-		Andrew.setVel({0,0});
-		Andrew.setAngularVel(-1);
-	}else if(Andrew.getLoc().x() < 4){
-		Andrew.setVel({1,0});
-		Andrew.setAngularVel(0);
-	}else if(Andrew.getLoc().x() > 15 and abs(Andrew.getAngle()) < 23*M_PI/24){
-		Andrew.setVel({0,0});
-		Andrew.setAngularVel(1);
-	}else if(Andrew.getLoc().x() > 15){
-		Andrew.setVel({-1,0});
-		Andrew.setAngularVel(0);
+	// Detect any new humans if applicable
+	for (size_t i = 0; i < current_scenario_.seen.size(); i++){
+		if (not current_scenario_.seen[i] and not current_scenario_.population[i]->isHidden(robot_loc_, global_planner_.map_)){
+			current_scenario_.seen[i] = true;
+			global_planner_.addHuman(current_scenario_.population[i]);
+		}
 	}
-	Andrew.move(dt_);
+
+	if (current_scenario_.identifier == 4){
+		// Have Andrew move down the hallway
+		if (Andrew.getLoc().x() < 4 and abs(Andrew.getAngle()) > M_PI/24){
+			Andrew.setVel({0,0});
+			Andrew.setAngularVel(-1);
+		}else if(Andrew.getLoc().x() < 4){
+			Andrew.setVel({1,0});
+			Andrew.setAngularVel(0);
+		}else if(Andrew.getLoc().x() > 15 and abs(Andrew.getAngle()) < 23*M_PI/24){
+			Andrew.setVel({0,0});
+			Andrew.setAngularVel(1);
+		}else if(Andrew.getLoc().x() > 15){
+			Andrew.setVel({-1,0});
+			Andrew.setAngularVel(0);
+		}
+		Andrew.move(dt_);
+	}
 
 	// Commented out so the car won't move, not permanent:
 	/*
@@ -412,15 +418,12 @@ void Navigation::Run() {
 	global_planner_.plotGlobalPath(global_viz_msg_);
 	global_planner_.plotFrontier(global_viz_msg_);
 	global_planner_.plotInvalidNodes(global_viz_msg_);
-	Andrew.show(global_viz_msg_);
-	Peter.show(global_viz_msg_);
-	Joydeep.show(global_viz_msg_);
-	Tongrui.show(global_viz_msg_);
-	Susan.show(global_viz_msg_);
+	
+	for (human::Human* H : current_scenario_.population){
+		H->show(global_viz_msg_);
+		H->visualizeFields(global_viz_msg_);
+	}
 
-	Joydeep.visualizeFields(global_viz_msg_);
-	Tongrui.visualizeFields(global_viz_msg_);
-	Andrew.visualizeFields(global_viz_msg_);
 	// showObstacles();
 
 	viz_pub_.publish(local_viz_msg_);

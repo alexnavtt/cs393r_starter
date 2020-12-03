@@ -56,7 +56,7 @@ std::array<line2f,4> GlobalPlanner::getCushionLines(line2f edge, float offset){
 	return bounding_box;
 }
 
-// Done: Alex (untested)
+// Done: Alex
 bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	// Check for adjacency
 	int x_offset = node.index.x() - neighbor.node_index.x();
@@ -83,7 +83,7 @@ bool GlobalPlanner::isValidNeighbor(const Node &node, const Neighbor &neighbor){
 	return true;
 }
 
-// Done: Alex (untested)
+// Done: Alex
 vector<Neighbor> GlobalPlanner::getNeighbors(const Node &node){
 	vector<Neighbor> neighbors;
 	vector<Neighbor> valid_neighbors;
@@ -114,7 +114,7 @@ vector<Neighbor> GlobalPlanner::getNeighbors(const Node &node){
 	return valid_neighbors;
 }
 
-// Done: Alex (untested)
+// Done: Alex
 Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 	Node new_node;
 	
@@ -143,7 +143,7 @@ Node GlobalPlanner::newNode(const Node &old_node, int neighbor_index){
 	return new_node;
 }
 
-// Done: Alex (untested)
+// Done: Alex
 void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 	nav_map_.clear();
 	frontier_.Clear();

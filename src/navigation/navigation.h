@@ -33,6 +33,7 @@
 #include "local_planner.h"
 #include "nav_types.h"  // contains obstacle and path definitions
 #include "human.h"
+#include "scenarios.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -147,12 +148,9 @@ class Navigation {
   std::list<Obstacle> BaseLinkObstacleList_;
   float obstacle_memory_;  
 
-  /* ------- Human Population ----- */
-  human::Human Peter;
-  human::Human Susan;
-  human::Human Joydeep;
-  human::Human Tongrui;
-  human::Human Andrew;
+  /* --- Social Planner Scenarios --- */
+  Scenario current_scenario_; 
+  void loadScenario(Scenario S);
 
   // Remove from memory any old or deprecated obstacles - called by ObservePointCloud
   void trimObstacles(double now);

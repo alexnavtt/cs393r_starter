@@ -89,7 +89,7 @@ private:
 	// Priority Queue (key, priority)
 	SimpleQueue<std::string, float> frontier_;
 	// Blueprint map of the environment
-	vector_map::VectorMap map_;
+	public: vector_map::VectorMap map_;	// Made this public so it can be accessed in Navigation
 	// Current goal
 	Eigen::Vector2f nav_goal_;
 	// Global path variable
