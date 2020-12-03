@@ -24,13 +24,14 @@ struct Neighbor{
 };
 
 struct Node{
-  Eigen::Vector2f loc;                  // Location of node
-  Eigen::Vector2i index;                // Index of node
-  float cost;                           // Total path cost up to this node (NOTE: not edge cost)
-	float social_cost;										// Cost associated with movement around humans
-  std::string parent;                   // Parent of the node on the optimal path                
-  std::vector<Neighbor> neighbors;      // List of all valid adjacent nodes
-  std::string key;                      // Unique identifier
+  Eigen::Vector2f loc;              // Location of node
+  Eigen::Vector2i index;            // Index of node
+  float cost;                       // Total path cost up to this node (NOTE: not edge cost)
+  float social_cost;                // Cost associated with movement around humans
+  char social_type;                 // 'n' for none, 's' safety, 'v' visibility, 'h' hidden
+  std::string parent;               // Parent of the node on the optimal path                
+  std::vector<Neighbor> neighbors;  // List of all valid adjacent nodes
+  std::string key;                  // Unique identifier
   bool visited = false;
 };
 
@@ -72,6 +73,7 @@ public:
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
+	void plotSocialCosts(amrl_msgs::VisualizationMsg &msg);
 	void plotFrontier(amrl_msgs::VisualizationMsg &msg);
 	void plotNodeNeighbors(const Node &node, amrl_msgs::VisualizationMsg &msg);
 	void plotInvalidNodes(amrl_msgs::VisualizationMsg &msg);

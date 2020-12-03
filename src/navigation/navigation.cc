@@ -426,6 +426,7 @@ void Navigation::Run() {
 	global_planner_.plotGlobalPath(global_viz_msg_);
 	global_planner_.plotFrontier(global_viz_msg_);
 	global_planner_.plotInvalidNodes(global_viz_msg_);
+	global_planner_.plotSocialCosts(global_viz_msg_);
 	
 	for (human::Human* H : current_scenario_.population){
 		H->show(global_viz_msg_);
