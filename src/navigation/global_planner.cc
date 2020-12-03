@@ -156,6 +156,7 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 	start_node.index  = Eigen::Vector2i(xi, yi);
 	start_node.cost   = 0;
 	start_node.social_cost = 0;
+	start_node.social_type = 'n';
 	start_node.parent = "START";
 	start_node.key    = "START";
 	start_node.neighbors = getNeighbors(start_node);
@@ -183,6 +184,8 @@ float GlobalPlanner::getSocialCost(Node &new_node){
 	float visibility_cost = 0;
 	float hidden_cost = 0;
 	float max_social_cost = 0;
+	// 'n' is none, 's' is safety, 'v' is visibility, 'h' is hidden
+	char social_type = 'n';
 
 	for(auto &H : population_){
 		// Skip if node is further than 10m from this human
@@ -200,7 +203,7 @@ float GlobalPlanner::getSocialCost(Node &new_node){
 					hidden_cost = H->hiddenCost(new_node.loc, intersection_point);
 					if (hidden_cost > max_social_cost){
 						max_social_cost = hidden_cost;
-						cout << "/";
+						social_type = 'h';
 					}
 				}
 			}
@@ -208,14 +211,15 @@ float GlobalPlanner::getSocialCost(Node &new_node){
 		// Otherwise, return safety or visibility factor, whichever is higher
 		else{
 			safety_cost = H->safetyCost(new_node.loc);
-			visibility_cost = H->visibilityCost(new_node.loc);		
+			visibility_cost = H->visibilityCost(new_node.loc);
 			float social_cost = std::max(safety_cost, visibility_cost);
 			if (social_cost > max_social_cost){
 				max_social_cost = social_cost;
-				cout << "|";
+				social_type = (social_cost > visibility_cost) ? 's' : 'v';
 			}
 		}
 	}
+	new_node.social_type = social_type;
 	// Scale by arbitrary factor to weight social costs with distance costs appropriately
 	return 20*max_social_cost;
 }
@@ -403,6 +407,22 @@ void GlobalPlanner::plotGlobalPath(amrl_msgs::VisualizationMsg &msg){
 		Vector2f start_loc = nav_map_[*key].loc;
 		Vector2f end_loc = nav_map_[end_key].loc;
 		visualization::DrawLine(start_loc, end_loc, 0x009c08, msg);
+	}
+}
+
+// TODO: Connor
+void GlobalPlanner::plotSocialCosts(amrl_msgs::VisualizationMsg &msg){
+	// Iterate through every explored node
+	for(const auto &element : nav_map_){
+		const Vector2f node_loc = element.second.loc;
+		// const float social_cost = element.second.social_cost;
+		// const float social_type = element.second.social_type;
+		// Mark's recommendation: use a switch statement with the expression as social_type
+		//    ('n' for none, 's' safety, 'v' visibility, 'h' hidden) to plot different colors
+		//    for each type with darkness ranging from light to dark based on intensity from
+		//    0 to 1. For example, 0xf0fff0 will be light green and 0x00ff00 darker green
+		// The color codes are hexidecimal btw, in order of RBG
+		visualization::DrawPoint(node_loc, 0xaaaaaa, msg);
 	}
 }
 
