@@ -181,20 +181,42 @@ void GlobalPlanner::clearPopulation(){
 float GlobalPlanner::getSocialCost(Node &new_node){
 	float safety_cost = 0;
 	float visibility_cost = 0;
+	float hidden_cost = 0;
 	float max_social_cost = 0;
 
 	for(auto &H : population_){
-		safety_cost = H->safetyCost(new_node.loc);
-		visibility_cost = H->visibilityCost(new_node.loc);		
-		float social_cost = std::max(safety_cost, visibility_cost);
-		if (social_cost > max_social_cost){
-			max_social_cost = social_cost;
+		// Skip if node is further than 10m from this human
+		if ( (new_node.loc - H->getLoc()).norm() > 10 ) continue;
+		
+		// If node is hidden behind wall, return surprise factor
+		if ( H->isHidden(new_node.loc, map_) ){
+			// Line of sight from human to node
+			const line2f view_line(H->getLoc(), new_node.loc);
+			for (const line2f map_line : map_.lines){
+				Vector2f intersection_point;
+				bool intersects = map_line.Intersection(view_line, &intersection_point);
+				if (intersects){
+					// hiddenCost also checks if node is in FOV with private isVisible
+					hidden_cost = H->hiddenCost(new_node.loc, intersection_point);
+					if (hidden_cost > max_social_cost){
+						max_social_cost = hidden_cost;
+						cout << "/";
+					}
+				}
+			}
+		}
+		// Otherwise, return safety or visibility factor, whichever is higher
+		else{
+			safety_cost = H->safetyCost(new_node.loc);
+			visibility_cost = H->visibilityCost(new_node.loc);		
+			float social_cost = std::max(safety_cost, visibility_cost);
+			if (social_cost > max_social_cost){
+				max_social_cost = social_cost;
+				cout << "|";
+			}
 		}
 	}
-	// if (max_social_cost > 0.5){
-	// 	cout << max_social_cost << endl;
-	// 	cout << "X: " << new_node.loc.x() << ", Y: " << new_node.loc.y() << endl;
-	// }
+	// Scale by arbitrary factor to weight social costs with distance costs appropriately
 	return 20*max_social_cost;
 }
 
@@ -237,7 +259,6 @@ void GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
 				neighbor_cost += nav_map_[neighbor_id].social_cost;
 				float heuristic = 1.0*getHeuristic(nav_goal_loc, nav_map_[neighbor_id].loc);
 				frontier_.Push(neighbor_id, neighbor_cost+heuristic);
-
 			}
 		}
 		loop_counter++;
@@ -339,8 +360,6 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 
 		bool intersection = map_.Intersects(robot_loc, target_loc);
 		if (!intersection){
-			// cout << "Obstruction in the way of this point, stepping back!" << endl;
-		// }else{
 			target_node = nav_map_[global_path_[i]];
 			return target_node;
 		}

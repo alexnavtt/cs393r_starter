@@ -152,12 +152,12 @@ Vector2f Human::toMapFrame(Vector2f p){
 	return loc_ + R_local2map * p;
 }
 
+// Visible: robot in FOV, Hidden: robot behind wall
 // Must be in the local frame
 bool Human::isVisible(Vector2f local_loc){
 	float vision_angle = atan2(local_loc.y(), local_loc.x());
 	return(vision_angle > -FOV_/2 and vision_angle < FOV_/2);
 }
-
 // Check if the robot is hidden from view (robot_loc is in map frame)
 bool Human::isHidden(Vector2f robot_loc, vector_map::VectorMap &map){
 	if (map.Intersects(loc_, robot_loc)) return true;

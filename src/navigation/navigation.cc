@@ -362,10 +362,11 @@ void Navigation::Run() {
 		if (not current_scenario_.seen[i] and not current_scenario_.population[i]->isHidden(robot_loc_, global_planner_.map_)){
 			current_scenario_.seen[i] = true;
 			global_planner_.addHuman(current_scenario_.population[i]);
+			cout << "New human discovered!" << endl;
 		}
 	}
 
-	if (current_scenario_.identifier == 4){
+	if (current_scenario_.identifier == 5){
 		// Have Andrew move down the hallway
 		if (Andrew.getLoc().x() < 4 and abs(Andrew.getAngle()) > M_PI/24){
 			Andrew.setVel({0,0});

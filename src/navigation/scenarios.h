@@ -1,10 +1,11 @@
 // This file contains groups of people to test a Social Planner in various scenarios
-// Current options:
-//   1) TODO: navigating hallway with static people
-//   2) TODO: joining conversation between static people
-//   3) TODO: avoiding surprise effect with static, unseen person
-//   4) TODO: passing by dynamic person in hallway
-//   5) TODO: navigating crowded, dynamic space
+// Options:
+//   1) navigating hallway with static people
+//   2) joining conversation between static people
+//   3) avoiding surprise effect with static, seen person
+//   4) avoiding surprise effect with static, unseen person
+//   5) passing by dynamic person in hallway
+//   6) TODO: replanning due to dynamic human blocking off hallway
 
 #ifndef SCENARIOS_CS393R_HH
 #define SCENARIOS_CS393R_HH
@@ -43,14 +44,21 @@ static Scenario Scene2({2, "Approaching a group of people from behind",
 	{  true   ,  true   }
 });
 
-static Scenario Scene3({3, "Avoiding surprise effect with static, unseen person",
+static Scenario Scene3({3, "Avoiding surprise effect with static, seen person",
+	{ &Andrew },
+	{{-18, 16}},
+	{M_PI},
+	{true}
+});
+
+static Scenario Scene4({4, "Avoiding surprise effect with static, unseen person",
 	{ &Andrew },
 	{{-23.8, 14}},
 	{M_PI},
 	{false}
 });
 
-static Scenario Scene4({4, "Passing by dynamic person in hallway",
+static Scenario Scene5({5, "Passing by dynamic person in hallway",
 	{ &Andrew },
 	{{16,8}},
 	{M_PI},
