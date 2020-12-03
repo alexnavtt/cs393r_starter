@@ -97,7 +97,7 @@ float Human::hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc){
 	Eigen::Vector2f local_loc = toLocalFrame(robot_loc);
 	float cost = 0;
 
-	if (isVisible(local_loc)){
+	if (isVisible(local_loc) and (robot_loc - loc_).norm() < vision_range_){
 		cost = 1/(hidden_decay_constant_ * (obs_loc - robot_loc).norm());
 	}
 
