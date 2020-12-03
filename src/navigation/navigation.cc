@@ -129,7 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 
 	// Set up the humans in the room
-	loadScenario(Scene4);
+	loadScenario(Scene5);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -253,7 +253,7 @@ float Navigation::limitVelocity(float vel) {
 
 void Navigation::moveAlongPath(PathOption path){
 	float current_speed = robot_vel_.norm();
-	float decel_dist = 0.3+-0.5*current_speed*current_speed/min_accel_;
+	float decel_dist = 0.3 - 0.5*current_speed*current_speed/min_accel_;
 	float cmd_vel = (path.free_path_length > decel_dist) ? max_vel_ : 0.0;
 	// if (navigation_success_) cmd_vel = 0;
 	driveCar(path.curvature, limitVelocity(cmd_vel));
@@ -307,12 +307,16 @@ void Navigation::checkReached(){
 	float dist_to_goal = (robot_loc_ - nav_goal_loc_).norm();
 	float current_speed = robot_vel_.norm();
 	if (current_speed > 2.0) return; // disregards initial infinite velocity
-	float stopping_dist = 0.1 - 0.5*current_speed*current_speed/min_accel_;
+	float stopping_dist = 0.3 - 0.5*max_vel_*max_vel_/min_accel_;	// I extended this to give nav_complete_ a little more breathing room
 
 	if (dist_to_goal <= stopping_dist){
 		nav_complete_ = true;
 		ROS_WARN("Navigation success!");
 	}
+	else{
+		cout << "not reached" << endl;
+	}
+
 }
 
 void Navigation::checkStalled(){
@@ -385,7 +389,7 @@ void Navigation::Run() {
 	}
 
 	// Commented out so the car won't move, not permanent:
-	/*
+
 	if (nav_complete_){
 		// Do nothing if navigation is not active
 		ros::Duration(0.01).sleep();
@@ -409,11 +413,14 @@ void Navigation::Run() {
 			ros::Duration(0.5).sleep();
 		}
 
+		if (global_planner_.needSocialReplan(robot_loc_)){
+			global_planner_.replan(robot_loc_, robot_loc_);		// by passing in robot_loc_ as the failed location, we prevent an "impassable node" from being added
+		}
+
 		// Visualization/Diagnostics
 		// local_planner_.printPathDetails(BestPath, local_goal_vector_);
 		local_planner_.plotPathDetails(BestPath, local_goal_vector_, local_viz_msg_);
 	}
-	*/
 
 	// Visualization
 	global_planner_.plotGlobalPath(global_viz_msg_);

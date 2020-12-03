@@ -14,13 +14,13 @@ public:
 	Human();
 
 	// Getters
-	Eigen::Vector2f getLoc();
-	float getAngle();
-	Eigen::Vector2f getVel();
-	float getAngularVel();
-	float getFOV();
-	bool isStanding();
-	bool isMoving();
+	Eigen::Vector2f getLoc() const;
+	float getAngle() const;
+	Eigen::Vector2f getVel() const;
+	float getAngularVel() const;
+	float getFOV() const;
+	bool isStanding() const;
+	bool isMoving() const;
 
 	// Setters
 	void setLoc(Eigen::Vector2f human_loc);
@@ -41,7 +41,7 @@ public:
 	float hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc);
 
 	// Utility
-	bool isHidden(Eigen::Vector2f robot_loc, vector_map::VectorMap &map);
+	bool isHidden(Eigen::Vector2f robot_loc, vector_map::VectorMap &map) const;
 	void move(float dt);
 
 	// Visualization
