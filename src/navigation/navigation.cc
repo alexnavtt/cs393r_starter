@@ -313,10 +313,6 @@ void Navigation::checkReached(){
 		nav_complete_ = true;
 		ROS_WARN("Navigation success!");
 	}
-	else{
-		cout << "not reached" << endl;
-	}
-
 }
 
 void Navigation::checkStalled(){
