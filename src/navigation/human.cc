@@ -98,7 +98,8 @@ float Human::hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc){
 	float cost = 0;
 
 	if (isVisible(local_loc)){
-		cost = 1/(hidden_decay_constant_ * (obs_loc - robot_loc).norm());
+		float scaling_factor = std::max(vision_range_ - (robot_loc - loc_).norm(), 0.0f);
+		cost = scaling_factor/(hidden_decay_constant_ * (obs_loc - robot_loc).norm());
 	}
 
 	return cost;

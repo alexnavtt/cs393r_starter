@@ -129,7 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 
 	// Set up the humans in the room
-	loadScenario(Scene3);
+	loadScenario(Scene4);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
