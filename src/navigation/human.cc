@@ -22,11 +22,12 @@ namespace human{
 Human::Human() :
 standing_(true),
 FOV_(3*M_PI/4),
-vision_range_(3),
+vision_range_(5),
 safety_x_variance_(4),
 safety_y_variance_(4),
 visibility_r_variance_(10),
-visibility_t_variance_(2)
+visibility_t_variance_(2),
+hidden_decay_constant_(1)
 {
 	setLoc({0,0});
 	setAngle(0);
@@ -78,7 +79,7 @@ float Human::safetyCost(Eigen::Vector2f robot_loc) {
 	float x_var = safety_x_variance_ + 1.25 * safety_x_variance_ * (!standing_);
 	float y_var = safety_y_variance_ + 1.25 * safety_y_variance_ * (!standing_);
 	float cost = exp( -Sq( local_loc.x() )/x_var - Sq( local_loc.y() )/y_var );
-	return cost;
+	return 20*cost;
 }
 
 float Human::visibilityCost(Eigen::Vector2f robot_loc){
@@ -93,7 +94,7 @@ float Human::visibilityCost(Eigen::Vector2f robot_loc){
 		cost = exp( -rSq/r_var - Sq(M_PI - abs(d_theta))/t_var );
 	}
 
-	return cost;
+	return 20*cost;
 }
 
 // Note that this function does not test whether the robot is hidden
@@ -102,10 +103,10 @@ float Human::hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc){
 	float cost = 0;
 
 	if (isVisible(local_loc) and (robot_loc - loc_).norm() < vision_range_){
-		cost = 1/(hidden_decay_constant_ * (obs_loc - robot_loc).norm());
+		cost = 1/(1 + hidden_decay_constant_ * (obs_loc - robot_loc).norm());
 	}
 
-	return cost;
+	return 1.0*cost;
 }
 
 
@@ -116,10 +117,10 @@ void Human::show(amrl_msgs::VisualizationMsg &msg){
 	Vector2f FOV_point2 = vision_range_*Vector2f(cos(-FOV_/2), sin(-FOV_/2));
 
 	// Assuming global vis msg
-	DrawArc(loc_, 0.5, 0, 2*M_PI, 0x0e07de, msg);						// Human Location
-	DrawArc(loc_, 3.0, angle_-FOV_/2, angle_+FOV_/2, 0x000000, msg);	// Field of view
-	DrawLine(loc_, toMapFrame(FOV_point1), 0x000000, msg);				// Field of view boundary
-	DrawLine(loc_, toMapFrame(FOV_point2), 0x000000, msg);				// Field of view boundary
+	DrawArc(loc_, 0.5, 0, 2*M_PI, 0x0e07de, msg);								// Human Location
+	DrawArc(loc_, vision_range_, angle_-FOV_/2, angle_+FOV_/2, 0x000000, msg);	// Field of view
+	DrawLine(loc_, toMapFrame(FOV_point1), 0x000000, msg);						// Field of view boundary
+	DrawLine(loc_, toMapFrame(FOV_point2), 0x000000, msg);						// Field of view boundary
 }
 
 // Debugging function, should not run with algorithm for effiency
