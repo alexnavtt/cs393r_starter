@@ -68,6 +68,8 @@ public:
 	void addHuman(human::Human* Bob);
 	// Clear the known population
 	void clearPopulation();
+	// Check if we need to replan around new/moved humans
+	bool needSocialReplan(Eigen::Vector2f robot_loc);
 
 	// Visualization
 	void plotGlobalPath(amrl_msgs::VisualizationMsg &msg);
@@ -102,6 +104,12 @@ private:
 	std::vector<Eigen::Vector2f> failed_locs_;
 	// Vector of all known humans
 	std::vector<human::Human*> population_;
+	// Vector of original human locations (used for replanning)
+	std::vector<Eigen::Vector2f> population_locs_;
+	// Vector of original human angles (used for replanning)
+	std::vector<float> population_angles_;
+	// Check to see if we need to update the global plan due to human motion
+	bool need_social_replan_ = false;
 };
 
 #endif

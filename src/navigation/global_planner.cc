@@ -168,12 +168,37 @@ void GlobalPlanner::initializeMap(Eigen::Vector2f loc){
 
 //====================== HUMAN MANIPULATION ==========================//
 void GlobalPlanner::addHuman(human::Human* Bob){
+	// Mark that a replan is needed
+	if (not global_path_.empty()) {
+		need_social_replan_ = true;
+	}
+
+	// Add human to planner
 	population_.push_back(Bob);
-	// TODO: Check if we need to replan for this new human
+	population_locs_.push_back(Bob->getLoc());
+	population_angles_.push_back(Bob->getAngle());
 }
 
 void GlobalPlanner::clearPopulation(){
 	population_.clear();
+}
+
+bool GlobalPlanner::needSocialReplan(Eigen::Vector2f robot_loc){
+	if (need_social_replan_) return true;
+
+	for (size_t i = 0; i < population_.size(); i++){
+		const human::Human &person = *population_[i];
+		if (person.isHidden(robot_loc, map_)) continue; // Do not replan if we cannot see the human
+
+		bool human_moved  = (person.getLoc() - population_locs_[i]).norm() > 0.5;
+		bool human_turned = abs(math_util::AngleDiff(person.getAngle(), population_angles_[i])) > 0.5;
+		need_social_replan_ = need_social_replan_ or human_moved or human_turned;
+
+		if (human_moved)  population_locs_[i]   = person.getLoc();
+		if (human_turned) population_angles_[i] = person.getAngle();
+	}
+
+	return need_social_replan_;
 }
 
 
@@ -378,7 +403,7 @@ bool GlobalPlanner::needsReplan(){return need_replan_;}
 
 void GlobalPlanner::replan(Vector2f robot_loc, Vector2f failed_target_loc){
 	
-	if ( (robot_loc - failed_target_loc).norm() > map_resolution_)
+	if ( (robot_loc - failed_target_loc).norm() > 1.41*map_resolution_)	// 1.41 for sqrt(2)
 		failed_locs_.push_back(failed_target_loc);
 	
 	initializeMap(robot_loc);
@@ -389,6 +414,9 @@ void GlobalPlanner::replan(Vector2f robot_loc, Vector2f failed_target_loc){
 		cout << "(" << l.x() << ", " << l.y() << ")" << endl;
 	}
 	cout << endl;
+
+	need_replan_ = false;
+	need_social_replan_ = false;
 }
 
 
@@ -410,7 +438,7 @@ void GlobalPlanner::plotGlobalPath(amrl_msgs::VisualizationMsg &msg){
 	}
 }
 
-// TODO: Connor
+// Done: Connor
 void GlobalPlanner::plotSocialCosts(amrl_msgs::VisualizationMsg &msg){
 	// Iterate through every explored node
 	for(const auto &element : nav_map_){

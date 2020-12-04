@@ -34,13 +34,13 @@ hidden_decay_constant_(1)
 }
 
 // Getters
-Vector2f Human::getLoc() 		{return loc_;}
-float Human::getAngle()  		{return angle_;}
-Vector2f Human::getVel() 		{return vel_;}
-float Human::getAngularVel()	{return angular_vel_;}
-float Human::getFOV()			{return FOV_;}
-bool Human::isStanding()		{return (standing_ or isMoving());}
-bool Human::isMoving()			{return vel_.norm() + abs(angular_vel_) > 0.005;}
+Vector2f Human::getLoc() const		{return loc_;}
+float Human::getAngle() const 		{return angle_;}
+Vector2f Human::getVel() const		{return vel_;}
+float Human::getAngularVel() const	{return angular_vel_;}
+float Human::getFOV() const			{return FOV_;}
+bool Human::isStanding() const		{return (standing_ or isMoving());}
+bool Human::isMoving() const		{return vel_.norm() + abs(angular_vel_) > 0.005;}
 
 
 // Setters
@@ -160,7 +160,7 @@ bool Human::isVisible(Vector2f local_loc){
 	return(vision_angle > -FOV_/2 and vision_angle < FOV_/2);
 }
 // Check if the robot is hidden from view (robot_loc is in map frame)
-bool Human::isHidden(Vector2f robot_loc, vector_map::VectorMap &map){
+bool Human::isHidden(Vector2f robot_loc, vector_map::VectorMap &map) const{
 	if (map.Intersects(loc_, robot_loc)) return true;
 	return false;
 }
