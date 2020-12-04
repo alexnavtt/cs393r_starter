@@ -129,7 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 
 	// Set up the humans in the room
-	loadScenario(Scene4);
+	loadScenario(Scene3);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -423,7 +423,7 @@ void Navigation::Run() {
 	
 	for (human::Human* H : current_scenario_.population){
 		H->show(global_viz_msg_);
-		H->visualizeFields(global_viz_msg_);
+		// H->visualizeFields(global_viz_msg_);
 	}
 
 	// showObstacles();

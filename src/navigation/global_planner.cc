@@ -215,13 +215,13 @@ float GlobalPlanner::getSocialCost(Node &new_node){
 			float social_cost = std::max(safety_cost, visibility_cost);
 			if (social_cost > max_social_cost){
 				max_social_cost = social_cost;
-				social_type = (social_cost > visibility_cost) ? 's' : 'v';
+				social_type = (safety_cost > visibility_cost) ? 's' : 'v';
 			}
 		}
 	}
 	new_node.social_type = social_type;
 	// Scale by arbitrary factor to weight social costs with distance costs appropriately
-	return 20*max_social_cost;
+	return max_social_cost;
 }
 
 void GlobalPlanner::getGlobalPath(Vector2f nav_goal_loc){
@@ -415,14 +415,26 @@ void GlobalPlanner::plotSocialCosts(amrl_msgs::VisualizationMsg &msg){
 	// Iterate through every explored node
 	for(const auto &element : nav_map_){
 		const Vector2f node_loc = element.second.loc;
-		// const float social_cost = element.second.social_cost;
-		// const float social_type = element.second.social_type;
-		// Mark's recommendation: use a switch statement with the expression as social_type
-		//    ('n' for none, 's' safety, 'v' visibility, 'h' hidden) to plot different colors
-		//    for each type with darkness ranging from light to dark based on intensity from
-		//    0 to 1. For example, 0xf0fff0 will be light green and 0x00ff00 darker green
-		// The color codes are hexidecimal btw, in order of RBG
-		visualization::DrawPoint(node_loc, 0xaaaaaa, msg);
+		const char social_type = element.second.social_type;
+		float social_cost = element.second.social_cost;
+		if (social_cost > 1.0) social_cost = 1.0;
+		if (social_cost < 0.5) social_cost = 0.5;
+		const int color_shade = 255*(1-social_cost);
+		float vis_color = 0;
+		switch(social_type){
+			case 's':
+				vis_color = 255*pow(16,4)+color_shade*(pow(16,2)+1);
+				break;
+			case 'v':
+				vis_color = 255*pow(16,2)+color_shade*(pow(16,4)+1);
+				break;
+			case 'h':
+				vis_color = 255+color_shade*(pow(16,4)+pow(16,2));
+				break;
+			default:
+				vis_color = 0xcccccc;
+		}
+		visualization::DrawPoint(node_loc, vis_color, msg);
 	}
 }
 

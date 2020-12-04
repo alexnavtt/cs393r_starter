@@ -46,7 +46,7 @@ static Scenario Scene2({2, "Approaching a group of people from behind",
 
 static Scenario Scene3({3, "Avoiding surprise effect with static, seen person",
 	{ &Andrew },
-	{{-18, 16}},
+	{{-22, 16}},
 	{M_PI},
 	{true}
 });
