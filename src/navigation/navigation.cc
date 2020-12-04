@@ -129,7 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 
 	// Set up the humans in the room
-	loadScenario(Scene5);
+	loadScenario(Scene1);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -340,6 +340,10 @@ void Navigation::loadScenario(Scenario S){
 		S.population[i]->setLoc(S.human_locs[i]);
 		S.population[i]->setAngle(S.human_angles[i]);
 
+		if (not S.standing[i]){
+			S.population[i]->setStanding(false);
+		}
+
 		if (S.seen[i]){
 			global_planner_.addHuman(S.population[i]);
 		}
@@ -422,7 +426,7 @@ void Navigation::Run() {
 	global_planner_.plotGlobalPath(global_viz_msg_);
 	global_planner_.plotFrontier(global_viz_msg_);
 	global_planner_.plotInvalidNodes(global_viz_msg_);
-	global_planner_.plotSocialCosts(global_viz_msg_);
+	// global_planner_.plotSocialCosts(global_viz_msg_);
 	
 	for (human::Human* H : current_scenario_.population){
 		H->show(global_viz_msg_);

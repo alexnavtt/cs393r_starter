@@ -55,7 +55,7 @@ private:
 	Eigen::Vector2f vel_;
 	float angular_vel_;
 
-	// Default state is sitting
+	// Default state is standing
 	bool standing_;
 
 	// Cost Fields

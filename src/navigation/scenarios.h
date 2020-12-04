@@ -28,19 +28,22 @@ struct Scenario{
   std::vector<Eigen::Vector2f> human_locs;
   std::vector<float> human_angles;
   std::vector<bool> seen;
+  std::vector<bool> standing;
 };
 
 static Scenario Scene1({1, "Navigating hallway with static people",
 	{ &Joydeep, &Tongrui },
 	{ {-10,16},  {-4,21} },
 	{  M_PI/2 ,  -M_PI/2 },
-	{  true   ,   true   }
+	{  true   ,   true   },
+	{  false  ,   true   }
 });
 
 static Scenario Scene2({2, "Approaching a group of people from behind",
 	{  &Susan ,  &Peter },
 	{ {-37,9} , {-39,10}},
 	{-3*M_PI/4, -M_PI/2 },
+	{  true   ,  true   },
 	{  true   ,  true   }
 });
 
@@ -48,6 +51,7 @@ static Scenario Scene3({3, "Avoiding surprise effect with static, seen person",
 	{ &Andrew },
 	{{-18, 16}},
 	{M_PI},
+	{true},
 	{true}
 });
 
@@ -55,13 +59,15 @@ static Scenario Scene4({4, "Avoiding surprise effect with static, unseen person"
 	{ &Andrew },
 	{{-23.8, 14}},
 	{M_PI},
-	{false}
+	{false},
+	{true}
 });
 
 static Scenario Scene5({5, "Passing by dynamic person in hallway",
 	{ &Andrew },
 	{{16,8}},
 	{M_PI},
+	{true},
 	{true}
 });
 

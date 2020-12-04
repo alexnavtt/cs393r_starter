@@ -20,7 +20,7 @@ namespace human{
 
 // Constructor
 Human::Human() :
-standing_(false),
+standing_(true),
 FOV_(3*M_PI/4),
 vision_range_(3),
 safety_x_variance_(4),
@@ -75,7 +75,9 @@ void Human::setHiddenDecay(float k){
 // Cost Methods
 float Human::safetyCost(Eigen::Vector2f robot_loc) {
 	Eigen::Vector2f local_loc = toLocalFrame(robot_loc);
-	float cost = exp( -Sq( local_loc.x() )/safety_x_variance_ - Sq( local_loc.y() )/safety_y_variance_ );
+	float x_var = safety_x_variance_ + 1.25 * safety_x_variance_ * (!standing_);
+	float y_var = safety_y_variance_ + 1.25 * safety_y_variance_ * (!standing_);
+	float cost = exp( -Sq( local_loc.x() )/x_var - Sq( local_loc.y() )/y_var );
 	return cost;
 }
 
@@ -83,10 +85,12 @@ float Human::visibilityCost(Eigen::Vector2f robot_loc){
 	Eigen::Vector2f local_loc = toLocalFrame(robot_loc);
 	float rSq = (loc_ - robot_loc).squaredNorm();
 	float d_theta = math_util::AngleDiff(atan2(robot_loc.y() - loc_.y(), robot_loc.x() - loc_.x()), angle_);
+	float r_var = visibility_r_variance_ + 1.25 * visibility_r_variance_ * (!standing_);
+	float t_var = visibility_t_variance_ + 1.25 * visibility_t_variance_ * (!standing_);
 	float cost = 0;
 
 	if (not isVisible(local_loc)){
-		cost = exp( -rSq/visibility_r_variance_ - Sq(M_PI - abs(d_theta))/visibility_t_variance_ );
+		cost = exp( -rSq/r_var - Sq(M_PI - abs(d_theta))/t_var );
 	}
 
 	return cost;
