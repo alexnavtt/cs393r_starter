@@ -438,21 +438,33 @@ void GlobalPlanner::plotGlobalPath(amrl_msgs::VisualizationMsg &msg){
 	}
 }
 
-// TODO: Connor
-void GlobalPlanner::plotSocialCosts(amrl_msgs::VisualizationMsg &msg){
-	// Iterate through every explored node
-	for(const auto &element : nav_map_){
-		const Vector2f node_loc = element.second.loc;
-		// const float social_cost = element.second.social_cost;
-		// const float social_type = element.second.social_type;
-		// Mark's recommendation: use a switch statement with the expression as social_type
-		//    ('n' for none, 's' safety, 'v' visibility, 'h' hidden) to plot different colors
-		//    for each type with darkness ranging from light to dark based on intensity from
-		//    0 to 1. For example, 0xf0fff0 will be light green and 0x00ff00 darker green
-		// The color codes are hexidecimal btw, in order of RBG
-		visualization::DrawPoint(node_loc, 0xaaaaaa, msg);
-	}
-}
+// Done: Connor
+// void GlobalPlanner::plotSocialCosts(amrl_msgs::VisualizationMsg &msg){
+// 	// Iterate through every explored node
+// 	for(const auto &element : nav_map_){
+// 		// second allows you to get the 2nd element of the std::map object 
+// 		// which is not the key string but the node
+// 		const Vector2f node_loc = element.second.loc;
+// 		const float social_cost = element.second.social_cost;
+// 		const char social_type = element.second.social_type;
+// 		float color;
+// 		switch(social_type) {
+// 		case 'n'  :
+// 			// decimal value for white
+// 			color = 16777215; 
+// 		// High to Low is Blue to Green
+// 		case 's'  :
+// 			color = int(social_cost*255) + int((1-social_cost)*255)*256;
+// 		// High to Low is Red to Yellow
+// 		case 'v'  :
+// 			color = 255*pow(2,16) + int(255*(1-social_cost))*pow(2,8);
+// 		// High to Low is Purple to Pink
+// 		case 'h'  :
+// 			color = 255*pow(2,16) + int(200*(1-social_cost))*pow(2,8) + 255;
+// 		}
+// 		visualization::DrawPoint(node_loc, color, msg);
+// 	}
+// }
 
 void GlobalPlanner::plotFrontier(amrl_msgs::VisualizationMsg &msg){
 	while(!frontier_.Empty()){
