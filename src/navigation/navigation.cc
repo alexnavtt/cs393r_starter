@@ -129,7 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 
 	// Set up the humans in the room
-	loadScenario(Scene3);
+	loadScenario(Scene6);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -361,15 +361,6 @@ void Navigation::Run() {
 	visualization::ClearVisualizationMsg(local_viz_msg_);
 	visualization::ClearVisualizationMsg(global_viz_msg_);
 
-	// Detect any new humans if applicable
-	for (size_t i = 0; i < current_scenario_.seen.size(); i++){
-		if (not current_scenario_.seen[i] and not current_scenario_.population[i]->isHidden(robot_loc_, global_planner_.map_)){
-			current_scenario_.seen[i] = true;
-			global_planner_.addHuman(current_scenario_.population[i]);
-			cout << "New human discovered!" << endl;
-		}
-	}
-
 	if (current_scenario_.identifier == 5){
 		// Have Andrew move down the hallway
 		if (Andrew.getLoc().x() < 4 and abs(Andrew.getAngle()) > M_PI/24){
@@ -388,6 +379,13 @@ void Navigation::Run() {
 		Andrew.move(dt_);
 	}
 
+	if (current_scenario_.identifier == 6 and not nav_complete_){
+		// Joydeep blocks hallway
+		if (Joydeep.getLoc().x() > -25.3) Joydeep.setVel({-1,0});
+		else Joydeep.setVel({0,0});
+		Joydeep.move(dt_);
+	}
+
 	// Commented out so the car won't move, not permanent:
 
 	if (nav_complete_){
@@ -395,6 +393,15 @@ void Navigation::Run() {
 		ros::Duration(0.01).sleep();
 
 	}else{
+		// Detect any new humans if applicable
+		for (size_t i = 0; i < current_scenario_.seen.size(); i++){
+			if (not current_scenario_.seen[i] and not current_scenario_.population[i]->isHidden(robot_loc_, global_planner_.map_)){
+				current_scenario_.seen[i] = true;
+				global_planner_.addHuman(current_scenario_.population[i]);
+				cout << "New human discovered!" << endl;
+			}
+		}
+		
 		// Extract the next node to aim for by the local planner
 		Node target_node = global_planner_.getClosestPathNode(robot_loc_, global_viz_msg_);
 		local_goal_vector_ = Map2BaseLink(target_node.loc);
