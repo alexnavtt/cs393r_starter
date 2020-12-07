@@ -36,9 +36,9 @@ public:
 	void setHiddenDecay(float k); // in the form cost = 1/(k*x)
 
 	// Cost Methods (Input points are in map frame)
-	float safetyCost(Eigen::Vector2f robot_loc);
-	float visibilityCost(Eigen::Vector2f robot_loc);
-	float hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc);
+	float safetyCost(Eigen::Vector2f node_loc);
+	float visibilityCost(Eigen::Vector2f node_loc);
+	float hiddenCost(Eigen::Vector2f node_loc, Eigen::Vector2f obs_loc);
 
 	// Utility
 	bool isHidden(Eigen::Vector2f robot_loc, vector_map::VectorMap &map) const;

@@ -74,18 +74,18 @@ void Human::setHiddenDecay(float k){
 
 
 // Cost Methods
-float Human::safetyCost(Eigen::Vector2f robot_loc) {
-	Eigen::Vector2f local_loc = toLocalFrame(robot_loc);
+float Human::safetyCost(Eigen::Vector2f node_loc) {
+	Eigen::Vector2f local_loc = toLocalFrame(node_loc);
 	float x_var = safety_x_variance_ + 1.25 * safety_x_variance_ * (!standing_);
 	float y_var = safety_y_variance_ + 1.25 * safety_y_variance_ * (!standing_);
 	float cost = exp( -Sq( local_loc.x() )/x_var - Sq( local_loc.y() )/y_var );
 	return 20*cost;
 }
 
-float Human::visibilityCost(Eigen::Vector2f robot_loc){
-	Eigen::Vector2f local_loc = toLocalFrame(robot_loc);
-	float rSq = (loc_ - robot_loc).squaredNorm();
-	float d_theta = math_util::AngleDiff(atan2(robot_loc.y() - loc_.y(), robot_loc.x() - loc_.x()), angle_);
+float Human::visibilityCost(Eigen::Vector2f node_loc){
+	Eigen::Vector2f local_loc = toLocalFrame(node_loc);
+	float rSq = (loc_ - node_loc).squaredNorm();
+	float d_theta = math_util::AngleDiff(atan2(node_loc.y() - loc_.y(), node_loc.x() - loc_.x()), angle_);
 	float r_var = visibility_r_variance_ + 1.25 * visibility_r_variance_ * (!standing_);
 	float t_var = visibility_t_variance_ + 1.25 * visibility_t_variance_ * (!standing_);
 	float cost = 0;
@@ -98,12 +98,12 @@ float Human::visibilityCost(Eigen::Vector2f robot_loc){
 }
 
 // Note that this function does not test whether the robot is hidden
-float Human::hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc){
-	Eigen::Vector2f local_loc = toLocalFrame(robot_loc);
+float Human::hiddenCost(Eigen::Vector2f node_loc, Eigen::Vector2f obs_loc){
+	Eigen::Vector2f local_loc = toLocalFrame(node_loc);
 	float cost = 0;
 
-	if (isVisible(local_loc) and (robot_loc - loc_).norm() < vision_range_){
-		cost = 1/(1 + hidden_decay_constant_ * (obs_loc - robot_loc).norm());
+	if (isVisible(local_loc) and (node_loc - loc_).norm() < vision_range_){
+		cost = 1/(1 + hidden_decay_constant_ * (obs_loc - node_loc).norm());
 	}
 
 	return 1.0*cost;
