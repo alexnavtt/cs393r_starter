@@ -79,7 +79,7 @@ float Human::safetyCost(Eigen::Vector2f robot_loc) {
 	float x_var = safety_x_variance_ + 1.25 * safety_x_variance_ * (!standing_);
 	float y_var = safety_y_variance_ + 1.25 * safety_y_variance_ * (!standing_);
 	float cost = exp( -Sq( local_loc.x() )/x_var - Sq( local_loc.y() )/y_var );
-	return 20*cost;
+	return 20*cost; // weighted
 }
 
 float Human::visibilityCost(Eigen::Vector2f robot_loc){
@@ -94,7 +94,7 @@ float Human::visibilityCost(Eigen::Vector2f robot_loc){
 		cost = exp( -rSq/r_var - Sq(M_PI - abs(d_theta))/t_var );
 	}
 
-	return 20*cost;
+	return 20*cost; // weighted
 }
 
 // Note that this function does not test whether the robot is hidden
@@ -106,7 +106,7 @@ float Human::hiddenCost(Eigen::Vector2f robot_loc, Eigen::Vector2f obs_loc){
 		cost = 1/(1 + hidden_decay_constant_ * (obs_loc - robot_loc).norm());
 	}
 
-	return 1.0*cost;
+	return 1.0*cost; // weighted
 }
 
 

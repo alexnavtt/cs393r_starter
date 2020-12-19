@@ -393,7 +393,11 @@ Node GlobalPlanner::getClosestPathNode(Eigen::Vector2f robot_loc, amrl_msgs::Vis
 			return target_node;
 		}
 
-		if (i == closest_index + 1) {need_replan_ = true;}
+		if (i < closest_index + 4) { //within a meter
+			cout << "!";
+			need_replan_ = true;
+			return target_node;
+		}
 	}
 
 	return target_node;

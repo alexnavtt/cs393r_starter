@@ -195,7 +195,7 @@ void LocalPlanner::calculateClearance(PathOption &path, const list<Obstacle> &ob
 	float theta = path.free_path_length/radius;
 
 	// Look 3 car lengths ahead
-	float look_ahead_dist = 1*car_length_;
+	float look_ahead_dist = 5*car_length_;
 
 	// Get start and end points
 	Vector2f center(0,radius);

@@ -120,7 +120,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 		obstacle_memory_(0)
 {
 	global_planner_.setResolution(0.25);
-	setLocalPlannerWeights(1,5,1); //fpl, clearance, dtg
+	setLocalPlannerWeights(1,100,1); //fpl, clearance, dtg
 
 	drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
 	viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -129,7 +129,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 	InitRosHeader("base_link", &drive_msg_.header);
 
 	// Set up the humans in the room
-	loadScenario(Scene6);
+	loadScenario(Scene1);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -381,7 +381,7 @@ void Navigation::Run() {
 
 	if (current_scenario_.identifier == 6 and not nav_complete_){
 		// Joydeep blocks hallway
-		if (Joydeep.getLoc().x() > -25.3) Joydeep.setVel({-1,0});
+		if (Joydeep.getLoc().x() > -24) Joydeep.setVel({0,0});
 		else Joydeep.setVel({0,0});
 		Joydeep.move(dt_);
 	}
@@ -401,7 +401,7 @@ void Navigation::Run() {
 				cout << "New human discovered!" << endl;
 			}
 		}
-		
+
 		// Extract the next node to aim for by the local planner
 		Node target_node = global_planner_.getClosestPathNode(robot_loc_, global_viz_msg_);
 		local_goal_vector_ = Map2BaseLink(target_node.loc);

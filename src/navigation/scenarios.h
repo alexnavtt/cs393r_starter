@@ -73,13 +73,11 @@ static Scenario Scene5({5, "Passing by dynamic person in hallway",
 
 static Scenario Scene6({6, "Replanning after blocked entrance",
 	{ &Joydeep, &Tongrui },
-	{ {-20, 16}, {-23, 9} },
+	{ {-24, 16}, {-23, 9} },
 	{ M_PI, 3*M_PI/2 },
-	{ false, false },
+	{ true, true },
 	{ true, false }
 });
-
-
 
 }//namespace navigation
 
